@@ -1,0 +1,50 @@
+[
+{
+  "directory": "/home/jonaj/StudyDir/CG/CG_Labs/build",
+  "command": "/usr/bin/g++ -I/home/jonaj/StudyDir/CG/CG_Labs/lab2/include -g -std=gnu++17 -o CMakeFiles/CG_Labs.dir/src/main.cpp.o -c /home/jonaj/StudyDir/CG/CG_Labs/lab2/src/main.cpp",
+  "file": "/home/jonaj/StudyDir/CG/CG_Labs/lab2/src/main.cpp",
+  "output": "CMakeFiles/CG_Labs.dir/src/main.cpp.o"
+},
+{
+  "directory": "/home/jonaj/StudyDir/CG/CG_Labs/build",
+  "command": "/usr/bin/g++ -I/home/jonaj/StudyDir/CG/CG_Labs/lab2/include -g -std=gnu++17 -o CMakeFiles/CG_Labs.dir/src/SFML/window.cpp.o -c /home/jonaj/StudyDir/CG/CG_Labs/lab2/src/SFML/window.cpp",
+  "file": "/home/jonaj/StudyDir/CG/CG_Labs/lab2/src/SFML/window.cpp",
+  "output": "CMakeFiles/CG_Labs.dir/src/SFML/window.cpp.o"
+},
+{
+  "directory": "/home/jonaj/StudyDir/CG/CG_Labs/build",
+  "command": "/usr/bin/g++ -I/home/jonaj/StudyDir/CG/CG_Labs/lab2/include -g -std=gnu++17 -o CMakeFiles/CG_Labs.dir/src/GL/vao.cpp.o -c /home/jonaj/StudyDir/CG/CG_Labs/lab2/src/GL/vao.cpp",
+  "file": "/home/jonaj/StudyDir/CG/CG_Labs/lab2/src/GL/vao.cpp",
+  "output": "CMakeFiles/CG_Labs.dir/src/GL/vao.cpp.o"
+},
+{
+  "directory": "/home/jonaj/StudyDir/CG/CG_Labs/build",
+  "command": "/usr/bin/g++ -I/home/jonaj/StudyDir/CG/CG_Labs/lab2/include -g -std=gnu++17 -o CMakeFiles/CG_Labs.dir/src/GL/program.cpp.o -c /home/jonaj/StudyDir/CG/CG_Labs/lab2/src/GL/program.cpp",
+  "file": "/home/jonaj/StudyDir/CG/CG_Labs/lab2/src/GL/program.cpp",
+  "output": "CMakeFiles/CG_Labs.dir/src/GL/program.cpp.o"
+},
+{
+  "directory": "/home/jonaj/StudyDir/CG/CG_Labs/build",
+  "command": "/usr/bin/g++ -I/home/jonaj/StudyDir/CG/CG_Labs/lab2/include -g -std=gnu++17 -o CMakeFiles/CG_Labs.dir/src/Engine/Scene/scene.cpp.o -c /home/jonaj/StudyDir/CG/CG_Labs/lab2/src/Engine/Scene/scene.cpp",
+  "file": "/home/jonaj/StudyDir/CG/CG_Labs/lab2/src/Engine/Scene/scene.cpp",
+  "output": "CMakeFiles/CG_Labs.dir/src/Engine/Scene/scene.cpp.o"
+},
+{
+  "directory": "/home/jonaj/StudyDir/CG/CG_Labs/build",
+  "command": "/usr/bin/g++ -I/home/jonaj/StudyDir/CG/CG_Labs/lab2/include -g -std=gnu++17 -o CMakeFiles/CG_Labs.dir/src/Engine/Control/controller.cpp.o -c /home/jonaj/StudyDir/CG/CG_Labs/lab2/src/Engine/Control/controller.cpp",
+  "file": "/home/jonaj/StudyDir/CG/CG_Labs/lab2/src/Engine/Control/controller.cpp",
+  "output": "CMakeFiles/CG_Labs.dir/src/Engine/Control/controller.cpp.o"
+},
+{
+  "directory": "/home/jonaj/StudyDir/CG/CG_Labs/build",
+  "command": "/usr/bin/g++ -I/home/jonaj/StudyDir/CG/CG_Labs/lab2/include -g -std=gnu++17 -o CMakeFiles/CG_Labs.dir/src/Engine/Geometry/2D/polygon.cpp.o -c /home/jonaj/StudyDir/CG/CG_Labs/lab2/src/Engine/Geometry/2D/polygon.cpp",
+  "file": "/home/jonaj/StudyDir/CG/CG_Labs/lab2/src/Engine/Geometry/2D/polygon.cpp",
+  "output": "CMakeFiles/CG_Labs.dir/src/Engine/Geometry/2D/polygon.cpp.o"
+},
+{
+  "directory": "/home/jonaj/StudyDir/CG/CG_Labs/build",
+  "command": "/usr/bin/g++ -I/home/jonaj/StudyDir/CG/CG_Labs/lab2/include -g -std=gnu++17 -o CMakeFiles/CG_Labs.dir/src/Engine/Geometry/3D/cylinder.cpp.o -c /home/jonaj/StudyDir/CG/CG_Labs/lab2/src/Engine/Geometry/3D/cylinder.cpp",
+  "file": "/home/jonaj/StudyDir/CG/CG_Labs/lab2/src/Engine/Geometry/3D/cylinder.cpp",
+  "output": "CMakeFiles/CG_Labs.dir/src/Engine/Geometry/3D/cylinder.cpp.o"
+}
+]
