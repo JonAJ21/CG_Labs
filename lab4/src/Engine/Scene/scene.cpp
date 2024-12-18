@@ -12,7 +12,7 @@ namespace Engine {
 
     Scene::Scene(int width, int height) : mWidth(width), mHeight(height) {
 
-        mCamera = new Camera(glm::vec3(0.0f, 0.0f, 2.0f));
+        mCamera = new Camera();
         if (!mCamera) {
             throw std::runtime_error("Failed to create camera");
         }
