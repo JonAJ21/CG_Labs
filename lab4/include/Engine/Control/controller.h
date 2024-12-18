@@ -26,6 +26,9 @@ namespace Engine {
         void pressLeft() override;
         void pressRight() override;
 
+        void pressSpace() override;
+        void pressLeftAlt() override;
+
         void mouseScroll(int y) override;
 
         void mouseMove(int x, int y) override;

@@ -57,6 +57,14 @@ namespace Engine {
         mScene->mCamera->ProcessKeyboard(CameraMovement::RIGHT, 0.001f);
     }
 
+    void Controller::pressSpace() {
+        mScene->mCamera->ProcessKeyboard(CameraMovement::UP, 0.001f);
+    }
+
+    void Controller::pressLeftAlt() {
+        mScene->mCamera->ProcessKeyboard(CameraMovement::DOWN, 0.001f);
+    }
+
     void Controller::pressXPlus() {
         mScene->mCamera->ProccessMouseMovementAroundCenter(100.0f, 0.0f);
     }
@@ -88,8 +96,8 @@ namespace Engine {
     void Controller::mouseMove(int x, int y) {
         GLfloat xOffset = x - mScene->mWidth / 2;
         GLfloat yOffset = mScene->mHeight / 2 - y;
-        std::cout << "xoffset: " << xOffset << " yoffset: " << yOffset << std::endl;
-        //mScene->mCamera->ProcessMouseMovement(xOffset, yOffset);
-        mScene->mCamera->ProccessMouseMovementAroundCenter(xOffset, yOffset);
+        //std::cout << "xoffset: " << xOffset << " yoffset: " << yOffset << std::endl;
+        mScene->mCamera->ProcessMouseMovement(xOffset, yOffset);
+        // mScene->mCamera->ProccessMouseMovementAroundCenter(xOffset, yOffset);
     }
 }

@@ -16,6 +16,7 @@ add_executable(CG_Labs
     src/GL/vao.cpp
     src/GL/program.cpp
     src/Engine/Scene/scene.cpp
+    src/Engine/Camera/camera.cpp
     src/Engine/Control/controller.cpp
     src/Engine/Geometry/2D/polygon.cpp
     src/Engine/Geometry/3D/cylinder.cpp

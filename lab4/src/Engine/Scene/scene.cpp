@@ -12,11 +12,10 @@ namespace Engine {
 
     Scene::Scene(int width, int height) : mWidth(width), mHeight(height) {
 
-        mCamera = new Camera();
+        mCamera = new Camera(glm::vec3(0.0f, 0.0f, 2.0f));
         if (!mCamera) {
             throw std::runtime_error("Failed to create camera");
         }
-
 
         // path from build folder
         GL::Program* first = new GL::Program("../res/glsl/shader");
@@ -25,14 +24,6 @@ namespace Engine {
         first->bindAttribute(2, "normal");
         first->link();
         first->use();
-
-        // Engine::Object* cylinder = new Engine::Cylinder(first, 0.3f, 0.7f, 32);
-        
-        // if (!cylinder) {
-        //     throw std::runtime_error("Failed to create cylinder");
-        // }
-
-        // mObjects.push_back(cylinder);
 
         Engine::Object* sphere = new Engine::Sphere(first, 0.3f, 32);
         if (!sphere) {

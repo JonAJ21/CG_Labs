@@ -85,6 +85,13 @@ void Window::processInput(sf::Window* window) {
         mScene->mController->pressRight();
     }
 
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space)) {
+        mScene->mController->pressSpace();
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::LAlt)) {
+        mScene->mController->pressLeftAlt();
+    }
+
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::X)) {
         mScene->mController->pressX();
     }
