@@ -64,6 +64,8 @@ namespace Engine {
     void Controller::mouseMove(int x, int y) {
         GLfloat xOffset = x - mScene->mWidth / 2;
         GLfloat yOffset = mScene->mHeight / 2 - y;
-        mScene->mCamera->ProcessMouseMovement(xOffset, yOffset);
+        std::cout << "xoffset: " << xOffset << " yoffset: " << yOffset << std::endl;
+        //mScene->mCamera->ProcessMouseMovement(xOffset, yOffset);
+        mScene->mCamera->ProccessMouseMovementAroundCenter(xOffset, yOffset);
     }
 }
