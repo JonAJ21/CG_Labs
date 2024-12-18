@@ -47,6 +47,8 @@ namespace Engine {
         virtual void pressI() {std::cout << "Base i pressed" << std::endl;};
         virtual void pressJ() {std::cout << "Base j pressed" << std::endl;};
         virtual void pressK() {std::cout << "Base k pressed" << std::endl;};
+        virtual void pressY() {std::cout << "Base y pressed" << std::endl;};
+        virtual void pressU() {std::cout << "Base u pressed" << std::endl;};
         virtual void pressL() {std::cout << "Base l pressed" << std::endl;}; 
         virtual void pressZ() {std::cout << "Base z pressed" << std::endl;};
         virtual void pressX() {std::cout << "Base x pressed" << std::endl;};
@@ -105,5 +107,12 @@ namespace Engine {
         virtual void pressF10() {std::cout << "Base F10 pressed" << std::endl;};
         virtual void pressF11() {std::cout << "Base F11 pressed" << std::endl;};
         virtual void pressF12() {std::cout << "Base F12 pressed" << std::endl;};
+
+        virtual void pressXPlus() {std::cout << "Base X+ pressed" << std::endl;};
+        virtual void pressYPlus() {std::cout << "Base Y+ pressed" << std::endl;};
+        virtual void pressZPlus() {std::cout << "Base Z+ pressed" << std::endl;};
+        virtual void pressXMinus() {std::cout << "Base X- pressed" << std::endl;};
+        virtual void pressYMinus() {std::cout << "Base Y- pressed" << std::endl;};
+        virtual void pressZMinus() {std::cout << "Base Z- pressed" << std::endl;};
     };
 }

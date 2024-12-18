@@ -85,6 +85,49 @@ void Window::processInput(sf::Window* window) {
         mScene->mController->pressRight();
     }
 
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::X)) {
+        mScene->mController->pressX();
+    }
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Y)) {
+        mScene->mController->pressY();
+    }
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Z)) {
+        mScene->mController->pressZ();
+    }
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::X) && 
+        sf::Keyboard::isKeyPressed(sf::Keyboard::Equal)) {
+        mScene->mController->pressXPlus();
+    }
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Y) && 
+        sf::Keyboard::isKeyPressed(sf::Keyboard::Equal)) {
+        mScene->mController->pressYPlus();
+    }
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Z) && 
+        sf::Keyboard::isKeyPressed(sf::Keyboard::Equal)) {
+        mScene->mController->pressZPlus();
+    }
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::X) && 
+        sf::Keyboard::isKeyPressed(sf::Keyboard::Dash)) {
+        mScene->mController->pressXMinus();
+    }
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Y) && 
+        sf::Keyboard::isKeyPressed(sf::Keyboard::Dash)) {
+        mScene->mController->pressYMinus();
+    }
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Z) && 
+        sf::Keyboard::isKeyPressed(sf::Keyboard::Dash)) {
+        mScene->mController->pressZMinus();
+    }
+
+
     if (event.type == sf::Event::MouseWheelScrolled) {
         if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
             mScene->mController->mouseScroll(event.mouseWheelScroll.delta);
@@ -94,6 +137,8 @@ void Window::processInput(sf::Window* window) {
     if (event.type == sf::Event::MouseMoved && sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
         mScene->mController->mouseMove(event.mouseMove.x, event.mouseMove.y);
     }
+
+
 }
 
 void Window::loop() {

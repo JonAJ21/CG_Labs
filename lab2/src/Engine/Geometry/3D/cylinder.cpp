@@ -9,30 +9,50 @@ namespace Engine {
         mHeight(height),
         mSegments(segments)
     {
-        
         float angleStep = 2.0f * glm::pi<float>() / segments;
+
+        // Центральные точки для верхней и нижней крышек
+        mVertices.push_back(glm::vec3(0.0f, height/2.0f, 0.0f));  // Верхний центр
+        mVertices.push_back(glm::vec3(0.0f, -height/2.0f, 0.0f)); // Нижний центр
+        mColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+        mColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+
+        // Точки для боковой поверхности и крышек
         for (int i = 0; i <= segments; ++i) {
             float angle = i * angleStep;
             float x = radius * cos(angle);
             float z = radius * sin(angle);
 
-            // Верхняя и нижняя крышки
-            mVertices.push_back(glm::vec3(x, height / 2.0f, z));
-            mVertices.push_back(glm::vec3(x, -height / 2.0f, z));
+            // Боковые точки
+            mVertices.push_back(glm::vec3(x, height/2.0f, z));
+            mVertices.push_back(glm::vec3(x, -height/2.0f, z));
 
             mColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
             mColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
-
         }
 
+        // Индексы для боковой поверхности
         for (int i = 0; i < segments; ++i) {
-            mIndices.push_back(i * 2);
-            mIndices.push_back(i * 2 + 1);
-            mIndices.push_back((i * 2 + 2) % (segments * 2));
+            int baseIndex = i * 2 + 2; // +2 из-за центральных точек
 
-            mIndices.push_back(i * 2 + 1);
-            mIndices.push_back((i * 2 + 3) % (segments * 2));
-            mIndices.push_back((i * 2 + 2) % (segments * 2));
+            // Боковые треугольники
+            mIndices.push_back(baseIndex);
+            mIndices.push_back(baseIndex + 1);
+            mIndices.push_back(baseIndex + 2);
+
+            mIndices.push_back(baseIndex + 1);
+            mIndices.push_back(baseIndex + 3);
+            mIndices.push_back(baseIndex + 2);
+
+            // Верхняя крышка
+            mIndices.push_back(0); // Верхний центр
+            mIndices.push_back(baseIndex);
+            mIndices.push_back(baseIndex + 2);
+
+            // Нижняя крышка
+            mIndices.push_back(1); // Нижний центр
+            mIndices.push_back(baseIndex + 1);
+            mIndices.push_back(baseIndex + 3);
         }
 
         mVAO.addVertexBufferObject(mVertices);

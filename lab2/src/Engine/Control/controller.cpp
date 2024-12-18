@@ -57,6 +57,30 @@ namespace Engine {
         mScene->mCamera->ProcessKeyboard(CameraMovement::RIGHT, 0.001f);
     }
 
+    void Controller::pressXPlus() {
+        mScene->mCamera->ProccessMouseMovementAroundCenter(100.0f, 0.0f);
+    }
+
+    void Controller::pressYPlus() {
+        mScene->mCamera->ProccessMouseMovementAroundCenter(0.0f, 100.0f);
+    }   
+
+    void Controller::pressZPlus() {
+        mScene->mCamera->ProccessMouseMovementAroundCenter(100.0f, 100.0f);
+    }
+
+    void Controller::pressXMinus() {
+        mScene->mCamera->ProccessMouseMovementAroundCenter(-100.0f, 0.0f);
+    }
+
+    void Controller::pressYMinus() {
+        mScene->mCamera->ProccessMouseMovementAroundCenter(0.0f, -10.0f);
+    }   
+
+    void Controller::pressZMinus() {
+        mScene->mCamera->ProccessMouseMovementAroundCenter(-100.0f, -100.0f);
+    }
+
     void Controller::mouseScroll(int y) {
         mScene->mCamera->ProcessMouseScroll(y * 5.0f);
     }
