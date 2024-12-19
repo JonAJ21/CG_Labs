@@ -4,6 +4,8 @@
 #include "GL/program.h"
 #include "Engine/Geometry/3D/object.h"
 #include "Engine/Camera/camera.h"
+#include "Engine/Light/spotlight.h"
+
 namespace Engine {
     class Scene {
     public:
@@ -11,6 +13,7 @@ namespace Engine {
         int mHeight;
 
         BaseController* mController;
+        Spotlight* mSpotlight;
         std::vector<Object*> mObjects;
         Object* mActiveObject;
 

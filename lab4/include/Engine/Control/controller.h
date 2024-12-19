@@ -39,5 +39,14 @@ namespace Engine {
         void pressXMinus() override;
         void pressYMinus() override;
         void pressZMinus() override;
+
+        void mouseScrollC(int y) override;
+        void pressI() override;
+        void pressJ() override;
+        void pressK() override;
+        void pressL() override;
+        
+
+        
     };
 }

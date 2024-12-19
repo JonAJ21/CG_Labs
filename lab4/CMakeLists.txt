@@ -21,6 +21,8 @@ add_executable(CG_Labs
     src/Engine/Geometry/2D/polygon.cpp
     src/Engine/Geometry/3D/cylinder.cpp
     src/Engine/Geometry/3D/sphere.cpp
+    src/Engine/Geometry/3D/pyramid.cpp
+    src/Engine/Light/spotlight.cpp
 )
 
 # Указываем пути к заголовочным файлам

@@ -7,6 +7,8 @@
 #include "Engine/Geometry/3D/object.h"
 #include "Engine/Geometry/3D/cylinder.h"
 #include "Engine/Geometry/3D/sphere.h"
+#include "Engine/Geometry/3D/pyramid.h"
+#include "Engine/Light/spotlight.h"
 
 namespace Engine {
 
@@ -25,12 +27,19 @@ namespace Engine {
         first->link();
         first->use();
 
-        Engine::Object* sphere = new Engine::Sphere(first, 0.3f, 32);
-        if (!sphere) {
-            throw std::runtime_error("Failed to create sphere");
+
+        Engine::Object* pyramid = new Engine::Pyramid(first);
+        if (!pyramid) {
+            throw std::runtime_error("Failed to create pyramid");
         }
 
-        mObjects.push_back(sphere);
+        mObjects.push_back(pyramid);
+        
+        // Engine::Object* sphere = new Engine::Sphere(first, 0.3f, 32);
+        // if (!sphere) {
+        //     throw std::runtime_error("Failed to create sphere");
+        // }
+        // mObjects.push_back(sphere);
 
         mController = new Controller(this);
         if (!mController) {
@@ -38,6 +47,19 @@ namespace Engine {
         }
 
         mActiveObject = mObjects[0];
+
+    
+
+        mSpotlight = new Spotlight(
+            first,
+            glm::vec3(0.0f, 0.0f, 1.0f),
+            glm::vec3(0.0f, 0.0f, -1.0f),
+            17.5f, 20.5f);
+        if (!mSpotlight) {
+            throw std::runtime_error("Failed to create spotlight");
+        }
+
+
     }
 
     Scene::~Scene() {
@@ -56,7 +78,8 @@ namespace Engine {
         glm::mat4 view = mCamera->getViewMatrix();
         glm::mat4 projection = mCamera->getProjectionMatrix();
 
-       
+        mSpotlight->setUniforms(mSpotlight->mProgram);
+
         for (auto object : mObjects) {
             object->mProgram->use();
             object->mProgram->setUniform("modelMatrix", object->getModelMatrix());

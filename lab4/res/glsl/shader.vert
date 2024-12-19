@@ -1,38 +1,49 @@
 #version 450
 
 in vec3 position;
+in vec3 color;
 in vec3 normal;
 
 uniform mat4 modelMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 
-in vec3 color;
+uniform vec3 spotlightPosition;
+uniform vec3 spotlightDirection;
+uniform float spotlightCutoff;
+uniform float spotlightOuterCutoff;
 
-out vec3 pass_color;
-out vec3 pass_normal;
+out vec3 worldPosition;
+out vec3 screenPosition;
+out vec3 fNormal;
+out vec3 fColor;
+
+out vec3 fSpotlightPosition;
+out vec3 fSpotlightDirection;
+out float fSpotlightCutoff;
+out float fSpotlightOuterCutoff;
 
 void main() {
-	gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1);
-	pass_color = color;	
-	pass_normal = normal;
+    // Преобразование позиции в мировые координаты
+    worldPosition = vec3(modelMatrix * vec4(position, 1.0));
+    
+    // Преобразование позиции в экранные координаты
+    vec4 viewPos = viewMatrix * modelMatrix * vec4(position, 1.0);
+    screenPosition = viewPos.xyz;
+    
+    // Преобразование нормали в мировое пространство
+    fNormal = normalize(mat3(modelMatrix) * normal);
+    
+    // Передача цвета во фрагментный шейдер
+    fColor = color;
+    
+    // Передача параметров прожектора во фрагментный шейдер
+    fSpotlightPosition = spotlightPosition;
+    fSpotlightDirection = spotlightDirection;
+    fSpotlightCutoff = spotlightCutoff;
+    fSpotlightOuterCutoff = spotlightOuterCutoff;
+    
+    // Итоговая позиция вершины
+    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+    
 }
-
-// #version 450
-
-// in vec3 position;
-// //uniform mat4 translationMatrix;
-// //uniform mat4 rotationMatrix;
-// //uniform mat4 scaleMatrix;
-// uniform mat4 modelMatrix;
-// uniform mat4 viewMatrix;
-// uniform mat4 projectionMatrix;
-
-// in vec3 color;
-
-// out vec3 pass_color;
-
-// void main() {
-// 	gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1);
-// 	pass_color = color;
-// }

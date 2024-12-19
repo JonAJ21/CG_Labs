@@ -100,4 +100,33 @@ namespace Engine {
         mScene->mCamera->ProcessMouseMovement(xOffset, yOffset);
         // mScene->mCamera->ProccessMouseMovementAroundCenter(xOffset, yOffset);
     }
+
+    void Controller::mouseScrollC(int y) {
+        std::cout << "y: " << y << std::endl;
+        std::cout << "cutoff: " << mScene->mSpotlight->mCutoff << std::endl;
+        std::cout << "outer cutoff: " << mScene->mSpotlight->mOuterCutoff << std::endl;
+
+        float cutoffAngle = glm::acos(mScene->mSpotlight->mCutoff);
+        float outerCutoffAngle = glm::acos(mScene->mSpotlight->mOuterCutoff);
+        std::cout << "cutoff angle: " << cutoffAngle << std::endl;
+        std::cout << "outer cutoff angle: " << outerCutoffAngle << std::endl;
+        mScene->mSpotlight->changeAngle(y * 5.0f);
+    }
+
+    void Controller::pressI() {
+        mScene->mSpotlight->changeDirection({ 0.0f, 0.001f, 0.0f });
+    }
+
+    void Controller::pressJ() {
+        mScene->mSpotlight->changeDirection({ -0.001f, 0.0f, -0.001f });
+    } 
+
+    void Controller::pressK() {
+        mScene->mSpotlight->changeDirection({ 0.0f, -0.001f, 0.0f });
+    }
+
+    void Controller::pressL() {
+        mScene->mSpotlight->changeDirection({ 0.001f, 0.000f, 0.0f });
+    }
 }
+

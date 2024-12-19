@@ -114,5 +114,8 @@ namespace Engine {
         virtual void pressXMinus() {std::cout << "Base X- pressed" << std::endl;};
         virtual void pressYMinus() {std::cout << "Base Y- pressed" << std::endl;};
         virtual void pressZMinus() {std::cout << "Base Z- pressed" << std::endl;};
+
+        virtual void mouseScrollC(int y) {std::cout << "Base mouse scroll + C" << std::endl;};
+        
     };
 }
