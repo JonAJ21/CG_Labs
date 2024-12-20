@@ -14,6 +14,8 @@ namespace Engine {
 
     Scene::Scene(int width, int height) : mWidth(width), mHeight(height) {
         glEnable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         // glEnable(GL_CULL_FACE);
         // glCullFace(GL_BACK);
 
@@ -34,26 +36,26 @@ namespace Engine {
         programs.push_back(first);
 
         
-        Engine::Object* pyramid = new Engine::Pyramid(programs);
-        if (!pyramid) {
-            throw std::runtime_error("Failed to create pyramid");
-        }
+        // Engine::Object* pyramid = new Engine::Pyramid(programs);
+        // if (!pyramid) {
+        //     throw std::runtime_error("Failed to create pyramid");
+        // }
 
-        mObjects.push_back(pyramid);
+        // mObjects.push_back(pyramid);
         
-        // Engine::Object* sphere = new Engine::Sphere(programs, 0.3f, 32);
-        // if (!sphere) {
-        //     throw std::runtime_error("Failed to create sphere");
-        // }
-        // mObjects.push_back(sphere);
-        // sphere->move(glm::vec3(-0.5f, 0.0f, 0.0f));
+        Engine::Object* sphere = new Engine::Sphere(programs, 0.3f, 128);
+        if (!sphere) {
+            throw std::runtime_error("Failed to create sphere");
+        }
+        mObjects.push_back(sphere);
+        sphere->move(glm::vec3(-0.35f, 0.0f, 0.0f));
 
-        // sphere = new Engine::Sphere(programs, 0.3f, 32);
-        // if (!sphere) {
-        //     throw std::runtime_error("Failed to create sphere");
-        // }
-        // mObjects.push_back(sphere);
-        // sphere->move(glm::vec3(0.5f, 0.0f, 0.0f));
+        sphere = new Engine::Sphere(programs, 0.3f, 128);
+        if (!sphere) {
+            throw std::runtime_error("Failed to create sphere");
+        }
+        mObjects.push_back(sphere);
+        sphere->move(glm::vec3(0.35f, 0.0f, 0.0f));
         
 
         mController = new Controller(this);
@@ -62,8 +64,8 @@ namespace Engine {
         }
         Light* light = new Spotlight(
             first,
-            glm::vec3(0.0f, 0.0f, 1.0f),
-            glm::vec3(0.0f, 0.0f, -1.0f),
+            glm::vec3(-1.0f, 1.0f, 0.0f),
+            glm::vec3(1.0f, -1.0f, 0.0f),
             17.5f, 20.5f);
         if (!light) {
             throw std::runtime_error("Failed to create spotlight");

@@ -48,7 +48,8 @@
         "stdexcept": "cpp",
         "streambuf": "cpp",
         "cinttypes": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "map": "cpp"
     },
     "cmake.sourceDirectory": "/home/jonaj/StudyDir/CG/CG_Labs/lab2"
 }

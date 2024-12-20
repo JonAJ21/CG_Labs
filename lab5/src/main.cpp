@@ -1,395 +1,482 @@
+// #include <iostream>
+
+// #include "SFML/window.h"
+
+// int main() {
+//     try {
+//         Window window("Lab5", 500, 500, 60);
+//     } catch (const std::runtime_error& e) {
+//         std::cerr << "Error: " << e.what() << std::endl;
+//         return -1;
+//     }
+//     return 0;
+// }
+
+#include <GL/glew.h>
+#include <SFML/Window.hpp>
+#include <SFML/Graphics.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 
-#include "SFML/window.h"
+// Глобальные переменные для камеры
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
-int main() {
-    try {
-        Window window("Lab5", 500, 500, 60);
-    } catch (const std::runtime_error& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return -1;
+float yaw = -90.0f;
+float pitch = 0.0f;
+float lastX = 400.0f;
+float lastY = 300.0f;
+bool firstMouse = true;
+float mouseSensitivity = 0.1f;
+float cameraSpeed = 0.05f;
+float deltaTime = 0.0f;
+
+bool cursorGrabbed = true;
+
+const char* vertexShaderSource = R"(
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec2 aTexCoord;
+out vec2 TexCoord;
+
+void main() {
+    gl_Position = vec4(aPos, 1.0);
+    TexCoord = aTexCoord;
+}
+)";
+
+const char* fragmentShaderSource = R"(
+#version 330 core
+in vec2 TexCoord;
+out vec4 FragColor;
+
+uniform vec3 cameraPos;
+uniform vec3 cameraFront;
+uniform float refractionIndex;
+
+struct Ray {
+    vec3 origin;
+    vec3 direction;
+};
+
+struct Hit {
+    bool happened;
+    vec3 point;
+    vec3 normal;
+    float t;
+    bool isTransparent;
+    vec3 color;
+};
+
+const vec3 lightPos = vec3(5.0, 5.0, 5.0);
+const float ambient = 0.1;
+const float AIR_IOR = 1.0;
+
+// Закон Снелля
+vec3 snellRefract(vec3 I, vec3 N, float n1, float n2) {
+    float eta = n1 / n2;
+    float cosI = -dot(N, I);
+    float sinT2 = eta * eta * (1.0 - cosI * cosI);
+    
+    if (sinT2 > 1.0) {
+        // Полное внутреннее отражение
+        return reflect(I, N);
     }
-    return 0;
+    
+    float cosT = sqrt(1.0 - sinT2);
+    return eta * I + (eta * cosI - cosT) * N;
 }
 
-// #include <GL/glew.h>
-// #include <SFML/Window.hpp>
-// #include <SFML/OpenGL.hpp>
-// #include <glm/glm.hpp>
-// #include <glm/gtc/matrix_transform.hpp>
-// #include <glm/gtc/type_ptr.hpp>
-
-// // Вершинный шейдер
-// const char* vertexShaderSource = R"(
-//     #version 330 core
-//     layout (location = 0) in vec3 aPos;
-//     layout (location = 1) in vec3 aNormal;
+// Формула Френеля
+float fresnel(vec3 I, vec3 N, float n1, float n2) {
+    float cosI = abs(dot(I, N));
+    float sinT2 = (n1 * n1 / (n2 * n2)) * (1.0 - cosI * cosI);
     
-//     uniform mat4 model;
-//     uniform mat4 view;
-//     uniform mat4 projection;
+    if (sinT2 > 1.0) {
+        return 1.0; // Полное внутреннее отражение
+    }
     
-//     out vec3 Normal;
-//     out vec3 FragPos;
+    float cosT = sqrt(1.0 - sinT2);
+    float Rs = ((n2 * cosI - n1 * cosT) / (n2 * cosI + n1 * cosT));
+    float Rp = ((n1 * cosT - n2 * cosI) / (n1 * cosT + n2 * cosI));
     
-//     void main() {
-//         FragPos = vec3(model * vec4(aPos, 1.0));
-//         Normal = mat3(transpose(inverse(model))) * aNormal;
-//         gl_Position = projection * view * model * vec4(aPos, 1.0);
-//     }
-// )";
+    return (Rs * Rs + Rp * Rp) / 2.0;
+}
 
-// // Фрагментный шейдер
-// const char* fragmentShaderSource = R"(
-//     #version 330 core
-//     out vec4 FragColor;
+Hit intersectSphere(Ray ray, vec3 center, float radius, vec3 color, bool isTransparent) {
+    Hit hit;
+    hit.happened = false;
     
-//     in vec3 Normal;
-//     in vec3 FragPos;
+    vec3 oc = ray.origin - center;
+    float a = dot(ray.direction, ray.direction);
+    float b = 2.0 * dot(oc, ray.direction);
+    float c = dot(oc, oc) - radius * radius;
+    float discriminant = b * b - 4.0 * a * c;
     
-//     uniform vec3 lightPos;
-//     uniform vec3 lightColor;
+    if (discriminant > 0.0) {
+        float t = (-b - sqrt(discriminant)) / (2.0 * a);
+        if (t > 0.001) {
+            hit.happened = true;
+            hit.t = t;
+            hit.point = ray.origin + t * ray.direction;
+            hit.normal = normalize(hit.point - center);
+            hit.color = color;
+            hit.isTransparent = isTransparent;
+        }
+    }
     
-//     void main() {
-//         vec3 norm = normalize(Normal);
-//         vec3 lightDir = normalize(lightPos - FragPos);
-        
-//         float diff = max(dot(norm, lightDir), 0.0);
-//         vec3 diffuse = diff * lightColor;
-        
-//         vec3 result = diffuse * vec3(1.0, 0.5, 0.2);
-//         FragColor = vec4(result, 1.0);
-//     }
-// )";
+    return hit;
+}
 
-// int main() {
-//     sf::Window window(sf::VideoMode(800, 600), "Пирамида с нормалями", sf::Style::Default, sf::ContextSettings(24));
-//     window.setVerticalSyncEnabled(true);
+Hit intersectPlane(Ray ray, vec3 normal, float height, vec3 color) {
+    Hit hit;
+    hit.happened = false;
     
-//     glewInit();
-    
-//     // Вершины пирамиды и их нормали
-//     float vertices[] = {
-//         // Основание
-//         -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-//          0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-//          0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-//         -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-        
-//         // Передняя грань
-//         -0.5f, -0.5f,  0.5f,  0.0f,  0.5f,  0.5f,
-//          0.5f, -0.5f,  0.5f,  0.0f,  0.5f,  0.5f,
-//          0.0f,  0.5f,  0.0f,  0.0f,  0.5f,  0.5f,
-        
-//         // Правая грань
-//          0.5f, -0.5f,  0.5f,  0.5f,  0.5f,  0.0f,
-//          0.5f, -0.5f, -0.5f,  0.5f,  0.5f,  0.0f,
-//          0.0f,  0.5f,  0.0f,  0.5f,  0.5f,  0.0f,
-        
-//         // Задняя грань
-//          0.5f, -0.5f, -0.5f,  0.0f,  0.5f, -0.5f,
-//         -0.5f, -0.5f, -0.5f,  0.0f,  0.5f, -0.5f,
-//          0.0f,  0.5f,  0.0f,  0.0f,  0.5f, -0.5f,
-        
-//         // Левая грань
-//         -0.5f, -0.5f, -0.5f, -0.5f,  0.5f,  0.0f,
-//         -0.5f, -0.5f,  0.5f, -0.5f,  0.5f,  0.0f,
-//          0.0f,  0.5f,  0.0f, -0.5f,  0.5f,  0.0f
-//     };
-    
-//     unsigned int indices[] = {
-//         0, 1, 2, 2, 3, 0,  // Основание
-//         4, 5, 6,           // Передняя грань
-//         7, 8, 9,           // Правая грань
-//         10, 11, 12,        // Задняя грань
-//         13, 14, 15         // Левая грань
-//     };
-
-//     // Создание и компиляция шейдеров
-//     unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-//     glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-//     glCompileShader(vertexShader);
-
-//     unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-//     glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-//     glCompileShader(fragmentShader);
-
-//     unsigned int shaderProgram = glCreateProgram();
-//     glAttachShader(shaderProgram, vertexShader);
-//     glAttachShader(shaderProgram, fragmentShader);
-//     glLinkProgram(shaderProgram);
-
-//     glDeleteShader(vertexShader);
-//     glDeleteShader(fragmentShader);
-
-//     // Создание буферов
-//     unsigned int VBO, VAO, EBO;
-//     glGenVertexArrays(1, &VAO);
-//     glGenBuffers(1, &VBO);
-//     glGenBuffers(1, &EBO);
-
-//     glBindVertexArray(VAO);
-
-//     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-//     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-//     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-//     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-//     // Настройка атрибутов вершин
-//     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-//     glEnableVertexAttribArray(0);
-//     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-//     glEnableVertexAttribArray(1);
-
-//     // Настройка OpenGL
-//     glEnable(GL_DEPTH_TEST);
-    
-//     // Матрицы для преобразований
-//     glm::mat4 model = glm::mat4(1.0f);
-//     glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
-//                                 glm::vec3(0.0f, 0.0f, 0.0f),
-//                                 glm::vec3(0.0f, 1.0f, 0.0f));
-//     glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
-
-//     // Основной цикл
-//     while (window.isOpen()) {
-//         sf::Event event;
-//         while (window.pollEvent(event)) {
-//             if (event.type == sf::Event::Closed)
-//                 window.close();
-//         }
-
-//         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-//         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-//         glUseProgram(shaderProgram);
-
-//         // Обновление юниформ-переменных
-//         model = glm::rotate(model, glm::radians(0.005f), glm::vec3(0.0f, 1.0f, 0.0f));
-        
-//         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-//         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-//         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        
-//         glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 2.0f, 2.0f, 2.0f);
-//         glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
-
-//         // Отрисовка пирамиды
-//         glBindVertexArray(VAO);
-//         glDrawElements(GL_TRIANGLES, sizeof(indices)/sizeof(unsigned int), GL_UNSIGNED_INT, 0);
-
-//         window.display();
-//     }
-
-//     // Очистка ресурсов
-//     glDeleteVertexArrays(1, &VAO);
-//     glDeleteBuffers(1, &VBO);
-//     glDeleteBuffers(1, &EBO);
-//     glDeleteProgram(shaderProgram);
-
-//     return 0;
-// }
-
-// #include <GL/glew.h>
-// #include <SFML/Window.hpp>
-// #include <SFML/OpenGL.hpp>
-// #include <glm/glm.hpp>
-// #include <glm/gtc/matrix_transform.hpp>
-// #include <glm/gtc/type_ptr.hpp>
-// #include <vector>
-// #include <cmath>
-
-// // Вершинный шейдер
-// const char* vertexShaderSource = R"(
-//     #version 330 core
-//     layout (location = 0) in vec3 aPos;
-//     layout (location = 1) in vec3 aNormal;
-    
-//     uniform mat4 model;
-//     uniform mat4 view;
-//     uniform mat4 projection;
-    
-//     out vec3 Normal;
-//     out vec3 Position;
-    
-//     void main() {
-//         Normal = mat3(transpose(inverse(model))) * aNormal;
-//         Position = vec3(model * vec4(aPos, 1.0));
-//         gl_Position = projection * view * model * vec4(aPos, 1.0);
-//     }
-// )";
-
-// // Фрагментный шейдер для прозрачной сферы
-// const char* transparentFragmentShaderSource = R"(
-//     #version 330 core
-//     out vec4 FragColor;
-    
-//     in vec3 Normal;
-//     in vec3 Position;
-    
-//     uniform vec3 cameraPos;
-//     uniform float refractionIndex;
-//     uniform samplerCube skybox;
-    
-//     void main() {
-//         vec3 I = normalize(Position - cameraPos);
-//         vec3 N = normalize(Normal);
-        
-//         float ratio = 1.00 / refractionIndex;
-//         vec3 R = refract(I, N, ratio);
-        
-//         FragColor = vec4(texture(skybox, R).rgb, 0.5);
-//     }
-// )";
-
-// // Фрагментный шейдер для непрозрачной сферы
-// const char* opaqueFragmentShaderSource = R"(
-//     #version 330 core
-//     out vec4 FragColor;
-    
-//     in vec3 Normal;
-//     in vec3 Position;
-    
-//     uniform vec3 lightPos;
-//     uniform vec3 lightColor;
-//     uniform vec3 objectColor;
-    
-//     void main() {
-//         vec3 norm = normalize(Normal);
-//         vec3 lightDir = normalize(lightPos - Position);
-        
-//         float diff = max(dot(norm, lightDir), 0.0);
-//         vec3 diffuse = diff * lightColor;
-        
-//         vec3 result = diffuse * objectColor;
-//         FragColor = vec4(result, 1.0);
-//     }
-// )";
-
-// // Функция для создания сферы
-// std::vector<float> createSphere(float radius, int sectors, int stacks) {
-//     std::vector<float> vertices;
-    
-//     for(int i = 0; i <= stacks; ++i) {
-//         float phi = M_PI * float(i) / float(stacks);
-//         for(int j = 0; j <= sectors; ++j) {
-//             float theta = 2.0f * M_PI * float(j) / float(sectors);
+    float denom = dot(normal, ray.direction);
+    if (abs(denom) > 0.001) {
+        float t = -(dot(ray.origin, normal) + height) / denom;
+        if (t > 0.001) {
+            hit.happened = true;
+            hit.t = t;
+            hit.point = ray.origin + t * ray.direction;
+            hit.normal = normal;
+            hit.color = color;
+            hit.isTransparent = false;
             
-//             float x = radius * sin(phi) * cos(theta);
-//             float y = radius * cos(phi);
-//             float z = radius * sin(phi) * sin(theta);
-            
-//             // Позиция
-//             vertices.push_back(x);
-//             vertices.push_back(y);
-//             vertices.push_back(z);
-            
-//             // Нормаль
-//             vertices.push_back(x/radius);
-//             vertices.push_back(y/radius);
-//             vertices.push_back(z/radius);
-//         }
-//     }
+            // Шахматный узор для пола
+            float scale = 1.0;
+            bool isWhite = (mod(floor(hit.point.x * scale) + floor(hit.point.z * scale), 2.0) == 0.0);
+            hit.color = isWhite ? vec3(0.8) : vec3(0.3);
+        }
+    }
     
-//     return vertices;
-// }
+    return hit;
+}
 
-// int main() {
-//     sf::Window window(sf::VideoMode(800, 600), "Преломление и прозрачность", sf::Style::Default, sf::ContextSettings(24));
-//     window.setVerticalSyncEnabled(true);
+Hit intersectScene(Ray ray) {
+    Hit hit;
+    hit.happened = false;
+    hit.t = 1e20;
     
-//     glewInit();
+    // Прозрачная сфера
+    Hit sphere1 = intersectSphere(ray, vec3(0.0, 0.0, -2.0), 0.5, vec3(0.8, 0.8, 1.0), true);
+    if (sphere1.happened && sphere1.t < hit.t) hit = sphere1;
     
-//     // Создание сфер
-//     std::vector<float> sphereVertices = createSphere(0.5f, 32, 16);
+    // Непрозрачная сфера
+    Hit sphere2 = intersectSphere(ray, vec3(1.0, 0.0, -2.5), 0.5, vec3(1.0, 0.2, 0.2), false);
+    if (sphere2.happened && sphere2.t < hit.t) hit = sphere2;
     
-//     // Создание и компиляция шейдеров
-//     unsigned int transparentShaderProgram = glCreateProgram();
-//     unsigned int opaqueShaderProgram = glCreateProgram();
+    // Пол
+    Hit plane = intersectPlane(ray, vec3(0.0, 1.0, 0.0), 1.0, vec3(0.5));
+    if (plane.happened && plane.t < hit.t) hit = plane;
     
-//     // ... Компиляция шейдеров (аналогично предыдущему примеру)
+    return hit;
+}
+
+vec3 shade(Hit hit, Ray ray) {
+    if (!hit.happened) return vec3(0.1); // Фоновый цвет
     
-//     // Создание буферов для сфер
-//     unsigned int VAO[2], VBO[2];
-//     glGenVertexArrays(2, VAO);
-//     glGenBuffers(2, VBO);
+    vec3 finalColor = vec3(0.0);
+    vec3 throughput = vec3(1.0);
     
-//     for(int i = 0; i < 2; ++i) {
-//         glBindVertexArray(VAO[i]);
-//         glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
-//         glBufferData(GL_ARRAY_BUFFER, sphereVertices.size() * sizeof(float), sphereVertices.data(), GL_STATIC_DRAW);
+    for (int bounce = 0; bounce < 4; bounce++) {
+        if (!hit.isTransparent) {
+            // Для непрозрачных объектов
+            vec3 lightDir = normalize(lightPos - hit.point);
+            float diff = max(dot(hit.normal, lightDir), 0.0);
+            
+            // Проверка тени
+            Ray shadowRay;
+            shadowRay.origin = hit.point + hit.normal * 0.001;
+            shadowRay.direction = lightDir;
+            Hit shadowHit = intersectScene(shadowRay);
+            float shadow = shadowHit.happened ? 0.2 : 1.0;
+            
+            finalColor += throughput * hit.color * (ambient + diff * shadow);
+            break;
+        }
         
-//         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-//         glEnableVertexAttribArray(0);
-//         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-//         glEnableVertexAttribArray(1);
-//     }
+        float n1 = AIR_IOR;
+        float n2 = refractionIndex;
+        bool entering = dot(ray.direction, hit.normal) < 0.0;
+        vec3 normal = entering ? hit.normal : -hit.normal;
+        
+        if (!entering) {
+            float temp = n1;
+            n1 = n2;
+            n2 = temp;
+        }
+        
+        float kr = fresnel(ray.direction, normal, n1, n2);
+        
+        // Преломление
+        if (kr < 0.999) {
+            Ray refractRay;
+            refractRay.origin = hit.point - normal * 0.001;
+            refractRay.direction = snellRefract(ray.direction, normal, n1, n2);
+            hit = intersectScene(refractRay);
+            
+            if (!hit.happened) {
+                finalColor += throughput * (1.0 - kr) * vec3(0.1);
+                break;
+            }
+            
+            throughput *= (1.0 - kr) * hit.color;
+            ray = refractRay;
+            continue;
+        }
+        
+        // Отражение
+        Ray reflectRay;
+        reflectRay.origin = hit.point + normal * 0.001;
+        reflectRay.direction = reflect(ray.direction, normal);
+        hit = intersectScene(reflectRay);
+        
+        if (!hit.happened) {
+            finalColor += throughput * kr * vec3(0.1);
+            break;
+        }
+        
+        throughput *= kr * hit.color;
+        ray = reflectRay;
+        
+        // Прекращаем трассировку, если вклад стал слишком маленьким
+        if (length(throughput) < 0.01) break;
+    }
     
-//     // Настройка OpenGL
-//     glEnable(GL_DEPTH_TEST);
-//     glEnable(GL_BLEND);
-//     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    return finalColor;
+}
+
+void main() {
+    vec2 uv = TexCoord * 2.0 - 1.0;
     
-//     // Параметры сцены
-//     float refractionIndex = 1.33f; // Начальное значение (вода)
-//     glm::vec3 cameraPos(0.0f, 0.0f, 3.0f);
+    vec3 right = normalize(cross(cameraFront, vec3(0.0, 1.0, 0.0)));
+    vec3 up = normalize(cross(right, cameraFront));
     
-//     while (window.isOpen()) {
-//         sf::Event event;
-//         while (window.pollEvent(event)) {
-//             if (event.type == sf::Event::Closed)
-//                 window.close();
-//             else if (event.type == sf::Event::KeyPressed) {
-//                 // Управление коэффициентом преломления
-//                 if (event.key.code == sf::Keyboard::Up)
-//                     refractionIndex = std::min(refractionIndex + 0.1f, 2.42f);
-//                 if (event.key.code == sf::Keyboard::Down)
-//                     refractionIndex = std::max(refractionIndex - 0.1f, 1.0f);
-//             }
-//         }
-        
-//         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-//         // Матрицы преобразования
-//         glm::mat4 view = glm::lookAt(cameraPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-//         glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f/600.0f, 0.1f, 100.0f);
-        
-//         // Отрисовка непрозрачной сферы
-//         glUseProgram(opaqueShaderProgram);
-//         glm::mat4 model1 = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
-        
-//         glUniformMatrix4fv(glGetUniformLocation(opaqueShaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model1));
-//         glUniformMatrix4fv(glGetUniformLocation(opaqueShaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-//         glUniformMatrix4fv(glGetUniformLocation(opaqueShaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-//         glUniform3f(glGetUniformLocation(opaqueShaderProgram, "objectColor"), 0.7f, 0.2f, 0.2f);
-//         glUniform3f(glGetUniformLocation(opaqueShaderProgram, "lightPos"), 2.0f, 2.0f, 2.0f);
-//         glUniform3f(glGetUniformLocation(opaqueShaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
-        
-//         glBindVertexArray(VAO[0]);
-//         glDrawArrays(GL_TRIANGLE_STRIP, 0, sphereVertices.size()/6);
-        
-//         // Отрисовка прозрачной сферы
-//         glUseProgram(transparentShaderProgram);
-//         glm::mat4 model2 = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        
-//         glUniformMatrix4fv(glGetUniformLocation(transparentShaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model2));
-//         glUniformMatrix4fv(glGetUniformLocation(transparentShaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-//         glUniformMatrix4fv(glGetUniformLocation(transparentShaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-//         glUniform3fv(glGetUniformLocation(transparentShaderProgram, "cameraPos"), 1, glm::value_ptr(cameraPos));
-//         glUniform1f(glGetUniformLocation(transparentShaderProgram, "refractionIndex"), refractionIndex);
-        
-//         glBindVertexArray(VAO[1]);
-//         glDrawArrays(GL_TRIANGLE_STRIP, 0, sphereVertices.size()/6);
-        
-//         window.display();
-//     }
+    Ray ray;
+    ray.origin = cameraPos;
+    ray.direction = normalize(cameraFront + uv.x * right + uv.y * up);
     
-//     // Очистка ресурсов
-//     glDeleteVertexArrays(2, VAO);
-//     glDeleteBuffers(2, VBO);
-//     glDeleteProgram(transparentShaderProgram);
-//     glDeleteProgram(opaqueShaderProgram);
+    Hit hit = intersectScene(ray);
+    vec3 color = shade(hit, ray);
     
-//     return 0;
-// }
+    // Гамма-коррекция
+    color = pow(color, vec3(1.0/2.2));
+    
+    FragColor = vec4(color, 1.0);
+}
+)";
+
+void processMouseMovement(float xpos, float ypos) {
+    if (firstMouse) {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos;
+    lastX = xpos;
+    lastY = ypos;
+
+    float sensitivity = mouseSensitivity;
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    if (pitch > 89.0f)
+        pitch = 89.0f;
+    if (pitch < -89.0f)
+        pitch = -89.0f;
+
+    glm::vec3 direction;
+    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction.y = sin(glm::radians(pitch));
+    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(direction);
+}
+
+void checkShaderCompileErrors(GLuint shader, const char* type) {
+    GLint success;
+    GLchar infoLog[1024];
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(shader, 1024, NULL, infoLog);
+        std::cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << "\n" << infoLog << std::endl;
+    }
+}
+
+int main() {
+    // Создание окна SFML
+    sf::ContextSettings settings;
+    settings.depthBits = 24;
+    settings.stencilBits = 8;
+    settings.majorVersion = 3;
+    settings.minorVersion = 3;
+    settings.attributeFlags = sf::ContextSettings::Core;
+
+    sf::Window window(sf::VideoMode(800, 600), "Refraction Demo", sf::Style::Default, settings);
+    window.setVerticalSyncEnabled(true);
+    window.setMouseCursorVisible(false);
+    window.setMouseCursorGrabbed(true);
+
+    // Инициализация GLEW
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK) {
+        std::cout << "Failed to initialize GLEW" << std::endl;
+        return -1;
+    }
+
+    // Вывод информации об OpenGL
+    std::cout << "OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
+    std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
+    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+    std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+
+    // Компиляция шейдеров
+    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertexShader);
+    checkShaderCompileErrors(vertexShader, "VERTEX");
+
+    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragmentShader);
+    checkShaderCompileErrors(fragmentShader, "FRAGMENT");
+
+    // Создание шейдерной программы
+    GLuint shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+
+    // Проверка линковки
+    GLint success;
+    GLchar infoLog[1024];
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(shaderProgram, 1024, NULL, infoLog);
+        std::cout << "ERROR::PROGRAM_LINKING_ERROR\n" << infoLog << std::endl;
+    }
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    // Создание VAO и VBO
+    float vertices[] = {
+        // positions        // texture coords
+        -1.0f,  1.0f, 0.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f,  0.0f, 0.0f,
+         1.0f,  1.0f, 0.0f,  1.0f, 1.0f,
+         1.0f, -1.0f, 0.0f,  1.0f, 0.0f,
+    };
+
+    GLuint VBO, VAO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    // Установка начальных uniform-переменных
+    glUseProgram(shaderProgram);
+    float refractionIndex = 1.5f; // Начальное значение (стекло)
+    glUniform1f(glGetUniformLocation(shaderProgram, "refractionIndex"), refractionIndex);
+
+    // Часы для измерения времени между кадрами
+    sf::Clock clock;
+
+    // Главный цикл
+    while (window.isOpen()) {
+        // Обновление deltaTime
+        deltaTime = clock.restart().asSeconds();
+        cameraSpeed = 2.5f * deltaTime;
+
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed)
+                window.close();
+            else if (event.type == sf::Event::MouseMoved) {
+                processMouseMovement(event.mouseMove.x, event.mouseMove.y);
+            }
+            else if (event.type == sf::Event::KeyPressed) {
+                // if (event.key.code == sf::Keyboard::Escape)
+                //     window.close();
+                if (event.key.code == sf::Keyboard::Tab) {
+                    cursorGrabbed = !cursorGrabbed;
+                    window.setMouseCursorGrabbed(cursorGrabbed);
+                    window.setMouseCursorVisible(!cursorGrabbed);
+                    firstMouse = true;
+                }
+                else if (event.key.code == sf::Keyboard::Up) {
+                    refractionIndex += 0.1f;
+                    glUniform1f(glGetUniformLocation(shaderProgram, "refractionIndex"), refractionIndex);
+                    std::cout << "Refraction index: " << refractionIndex << std::endl;
+                }
+                else if (event.key.code == sf::Keyboard::Down) {
+                    refractionIndex = std::max(1.0f, refractionIndex - 0.1f);
+                    glUniform1f(glGetUniformLocation(shaderProgram, "refractionIndex"), refractionIndex);
+                    std::cout << "Refraction index: " << refractionIndex << std::endl;
+                }
+                else if (event.key.code == sf::Keyboard::W && event.key.control) { // Ctrl+W для воды
+                    refractionIndex = 1.33f;
+                    glUniform1f(glGetUniformLocation(shaderProgram, "refractionIndex"), refractionIndex);
+                    std::cout << "Water: " << refractionIndex << std::endl;
+                }
+                else if (event.key.code == sf::Keyboard::G && event.key.control) { // G для стекла
+                    refractionIndex = 1.5f;
+                    glUniform1f(glGetUniformLocation(shaderProgram, "refractionIndex"), refractionIndex);
+                    std::cout << "Glass: " << refractionIndex << std::endl;
+                }
+                else if (event.key.code == sf::Keyboard::D && event.key.control) { // D для алмаза
+                    refractionIndex = 2.42f;
+                    glUniform1f(glGetUniformLocation(shaderProgram, "refractionIndex"), refractionIndex);
+                    std::cout << "Diamond: " << refractionIndex << std::endl;
+                }
+            }
+        }
+
+        // Обработка движения камеры
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+            cameraPos += cameraSpeed * cameraFront;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+            cameraPos -= cameraSpeed * cameraFront;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+            cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+            cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+            cameraPos += cameraSpeed * cameraUp;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
+            cameraPos -= cameraSpeed * cameraUp;
+
+        // Обновление uniform-переменных камеры
+        glUniform3fv(glGetUniformLocation(shaderProgram, "cameraPos"), 1, glm::value_ptr(cameraPos));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "cameraFront"), 1, glm::value_ptr(cameraFront));
+
+        // Рендеринг
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+        window.display();
+    }
+
+    // Очистка
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteProgram(shaderProgram);
+
+    return 0;
+}
