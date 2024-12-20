@@ -22,6 +22,7 @@
 #include <iostream>
 #include <string>
 #include <memory>
+#include <vector>
 
 // Шейдерные исходники
 const char* vertexShaderSource = R"(
@@ -69,6 +70,35 @@ in vec2 texCoord;
 uniform vec3 cameraPos;
 uniform vec3 cameraFront;
 uniform float refractionIndex;
+uniform int numSpheres;
+uniform int numCylinders;
+uniform int numCones;
+
+// Буферы объектов с фиксированным размером
+layout(std430, binding = 0) buffer SphereBuffer {
+    vec4 spheres[10];  // Максимум 10 сфер
+};
+layout(std430, binding = 1) buffer SphereColorBuffer {
+    vec4 sphereColors[10];
+};
+layout(std430, binding = 2) buffer CylinderBuffer {
+    vec4 cylinders[10];  // Максимум 10 цилиндров
+};
+layout(std430, binding = 3) buffer CylinderAxisBuffer {
+    vec4 cylinderAxes[10];
+};
+layout(std430, binding = 4) buffer CylinderColorBuffer {
+    vec4 cylinderColors[10];
+};
+layout(std430, binding = 5) buffer ConeBuffer {
+    vec4 cones[10];  // Максимум 10 конусов
+};
+layout(std430, binding = 6) buffer ConeAxisBuffer {
+    vec4 coneAxes[10];
+};
+layout(std430, binding = 7) buffer ConeColorBuffer {
+    vec4 coneColors[10];
+};
 
 #define AIR_IOR 1.0
 
@@ -243,17 +273,47 @@ Hit intersectScene(Ray ray) {
     hit.happened = false;
     hit.t = 1e20;
     
-    Hit sphere1 = intersectSphere(ray, vec3(0.0, 0.0, -2.0), 0.5, vec3(0.8, 0.8, 1.0), true);
-    if (sphere1.happened && sphere1.t < hit.t) hit = sphere1;
+    // Перебираем все сферы
+    for(int i = 0; i < numSpheres; i++) {
+        vec3 center = spheres[i].xyz;
+        float radius = spheres[i].w;
+        vec3 color = sphereColors[i].rgb;
+        bool isTransparent = sphereColors[i].a > 0.5;
+        
+        Hit sphereHit = intersectSphere(ray, center, radius, color, isTransparent);
+        if(sphereHit.happened && sphereHit.t < hit.t) hit = sphereHit;
+    }
+    // for (int i = 0; i < numSpheres; i++) {
+    //     Hit sphere1 = intersectSphere(ray, vec3(i, 0.0, -2.0), 0.5, vec3(0.8, 0.8, 1.0), true);
+    //     if (sphere1.happened && sphere1.t < hit.t) hit = sphere1;
+    // }
+
     
-    Hit sphere2 = intersectSphere(ray, vec3(1.0, 0.0, -2.5), 0.5, vec3(1.0, 0.2, 0.2), false);
-    if (sphere2.happened && sphere2.t < hit.t) hit = sphere2;
+    // Перебираем все цилиндры
+    for(int i = 0; i < numCylinders; i++) {
+        vec3 base = cylinders[i].xyz;
+        float radius = cylinders[i].w;
+        vec3 axis = cylinderAxes[i].xyz;
+        float height = cylinderAxes[i].w;
+        vec3 color = cylinderColors[i].rgb;
+        bool isTransparent = cylinderColors[i].a > 0.5;
+        
+        Hit cylinderHit = intersectCylinder(ray, base, axis, radius, height, color, isTransparent);
+        if(cylinderHit.happened && cylinderHit.t < hit.t) hit = cylinderHit;
+    }
     
-    Hit cylinder = intersectCylinder(ray, vec3(-1.5, -1.0, -2.5), vec3(0.0, 1.0, 0.0), 0.3, 1.0, vec3(0.2, 0.8, 0.2), false);
-    if (cylinder.happened && cylinder.t < hit.t) hit = cylinder;
-    
-    Hit cone = intersectCone(ray, vec3(1.5, -1.0, -2.5), vec3(0.0, 1.0, 0.0), 0.5, 1.0, vec3(0.8, 0.4, 0.0), false);
-    if (cone.happened && cone.t < hit.t) hit = cone;
+    // Перебираем все конусы
+    for(int i = 0; i < numCones; i++) {
+        vec3 apex = cones[i].xyz;
+        float angle = cones[i].w;
+        vec3 axis = coneAxes[i].xyz;
+        float height = coneAxes[i].w;
+        vec3 color = coneColors[i].rgb;
+        bool isTransparent = coneColors[i].a > 0.5;
+        
+        Hit coneHit = intersectCone(ray, apex, axis, angle, height, color, isTransparent);
+        if(coneHit.happened && coneHit.t < hit.t) hit = coneHit;
+    }
     
     Hit plane = intersectPlane(ray, vec3(0.0, 1.0, 0.0), 1.0, vec3(0.5));
     if (plane.happened && plane.t < hit.t) hit = plane;
@@ -343,6 +403,12 @@ void main() {
 }
 )";
 
+struct Object {
+    glm::vec4 position; // xyz - position, w - radius/angle
+    glm::vec4 axis;     // xyz - axis direction, w - height (for cylinders and cones)
+    glm::vec4 color;    // rgb - color, a - isTransparent
+};
+
 class Camera {
 private:
     glm::vec3 position;
@@ -384,7 +450,7 @@ public:
         }
 
         float xoffset = xpos - lastX;
-        float yoffset = lastY - ypos; // Инвертируем это значение
+        float yoffset = lastY - ypos;
         lastX = xpos;
         lastY = ypos;
 
@@ -451,6 +517,10 @@ public:
         glUniform1f(glGetUniformLocation(program, name), value);
     }
 
+    void setInt(const char* name, int value) {
+        glUniform1i(glGetUniformLocation(program, name), value);
+    }
+
     void setVec3(const char* name, const glm::vec3& value) {
         glUniform3fv(glGetUniformLocation(program, name), 1, glm::value_ptr(value));
     }
@@ -505,6 +575,14 @@ private:
 class Renderer {
 private:
     GLuint VAO, VBO;
+    GLuint sphereSSBO, sphereColorSSBO;
+    GLuint cylinderSSBO, cylinderAxisSSBO, cylinderColorSSBO;
+    GLuint coneSSBO, coneAxisSSBO, coneColorSSBO;
+    
+    std::vector<Object> spheres;
+    std::vector<Object> cylinders;
+    std::vector<Object> cones;
+    
     float vertices[20] = {
         -1.0f,  1.0f, 0.0f,  0.0f, 1.0f,
         -1.0f, -1.0f, 0.0f,  0.0f, 0.0f,
@@ -515,6 +593,9 @@ private:
 public:
     Renderer() {
         setupBuffers();
+        setupObjects();
+        setupSSBOs();
+        updateUniformCounts();
     }
 
     ~Renderer() {
@@ -523,10 +604,58 @@ public:
 
     void draw() {
         glBindVertexArray(VAO);
+        updateUniformCounts();
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
+    int getNumSpheres() const { return spheres.size(); }
+    int getNumCylinders() const { return cylinders.size(); }
+    int getNumCones() const { return cones.size(); }
+
 private:
+    void updateUniformCounts() {
+        GLint currentProgram;
+        glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgram);
+        glUniform1i(glGetUniformLocation(currentProgram, "numSpheres"), spheres.size());
+        glUniform1i(glGetUniformLocation(currentProgram, "numCylinders"), cylinders.size());
+        glUniform1i(glGetUniformLocation(currentProgram, "numCones"), cones.size());
+    }
+
+    void setupObjects() {
+        // Сферы
+        spheres.push_back({
+            glm::vec4(0.0f, 0.0f, -2.0f, 0.5f),  // position and radius
+            glm::vec4(0.0f),                      // unused for spheres
+            glm::vec4(0.8f, 0.8f, 1.0f, 1.0f)    // color and transparency
+        });
+        
+        spheres.push_back({
+            glm::vec4(1.0f, 0.0f, -2.5f, 0.5f),
+            glm::vec4(0.0f),
+            glm::vec4(1.0f, 0.2f, 0.2f, 0.0f)
+        });
+
+        spheres.push_back({
+            glm::vec4(2.0f, 2.0f, -2.5f, 0.5f),
+            glm::vec4(0.0f),
+            glm::vec4(1.0f, 0.2f, 0.2f, 0.0f)
+        });
+
+        // Цилиндры
+        cylinders.push_back({
+            glm::vec4(-1.5f, -1.0f, -2.5f, 0.3f),
+            glm::vec4(0.0f, 1.0f, 0.0f, 1.0f),
+            glm::vec4(0.2f, 0.8f, 0.2f, 0.0f)
+        });
+
+        // Конусы
+        cones.push_back({
+            glm::vec4(1.5f, -1.0f, -2.5f, 0.5f),
+            glm::vec4(0.0f, 1.0f, 0.0f, 1.0f),
+            glm::vec4(0.8f, 0.4f, 0.0f, 0.0f)
+        });
+    }
+
     void setupBuffers() {
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &VBO);
@@ -541,9 +670,102 @@ private:
         glEnableVertexAttribArray(1);
     }
 
+    void setupSSBOs() {
+        // Создаем и заполняем буферы для сфер
+
+        std::vector<glm::vec4> spherePositions;
+        std::vector<glm::vec4> sphereColors;
+        
+        for (const auto& sphere : spheres) {
+            spherePositions.push_back(sphere.position);
+            sphereColors.push_back(sphere.color);
+        }
+        
+        glGenBuffers(1, &sphereSSBO);
+        glGenBuffers(1, &sphereColorSSBO);
+            
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, sphereSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, spherePositions.size() * sizeof(glm::vec4), 
+                    spherePositions.data(), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, sphereSSBO);
+            
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, sphereColorSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sphereColors.size() * sizeof(glm::vec4),
+                    sphereColors.data(), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, sphereColorSSBO);
+
+        // Создаем и заполняем буферы для цилиндров
+
+        std::vector<glm::vec4> cylinderPositions;
+        std::vector<glm::vec4> cylinderAxis;
+        std::vector<glm::vec4> cylinderColors;
+        for (const auto& cylinder : cylinders) {
+            cylinderPositions.push_back(cylinder.position);
+            cylinderAxis.push_back(cylinder.axis);
+            cylinderColors.push_back(cylinder.color);
+        }
+
+        glGenBuffers(1, &cylinderSSBO);
+        glGenBuffers(1, &cylinderAxisSSBO);
+        glGenBuffers(1, &cylinderColorSSBO);
+        
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, cylinderSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, cylinderPositions.size() * sizeof(glm::vec4),
+                    cylinderPositions.data(), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, cylinderSSBO);
+        
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, cylinderAxisSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, cylinderAxis.size() * sizeof(glm::vec4),
+                    cylinderAxis.data(), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, cylinderAxisSSBO);
+        
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, cylinderColorSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, cylinderColors.size() * sizeof(glm::vec4),
+                    cylinderColors.data(), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, cylinderColorSSBO);
+
+        // Создаем и заполняем буферы для конусов
+
+        std::vector<glm::vec4> conePositions;
+        std::vector<glm::vec4> coneAxis;
+        std::vector<glm::vec4> coneColors;
+        for (const auto& cone : cones) {
+            conePositions.push_back(cone.position);
+            coneAxis.push_back(cone.axis);
+            coneColors.push_back(cone.color);
+        }
+
+        glGenBuffers(1, &coneSSBO);
+        glGenBuffers(1, &coneAxisSSBO);
+        glGenBuffers(1, &coneColorSSBO);
+        
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, coneSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, conePositions.size() * sizeof(glm::vec4),
+                    conePositions.data(), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, coneSSBO);
+        
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, coneAxisSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, coneAxis.size() * sizeof(glm::vec4),
+                    coneAxis.data(), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, coneAxisSSBO);
+        
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, coneColorSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, coneColors.size() * sizeof(glm::vec4),
+                    coneColors.data(), GL_STATIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, coneColorSSBO);
+    }
+
     void cleanup() {
         glDeleteVertexArrays(1, &VAO);
         glDeleteBuffers(1, &VBO);
+        glDeleteBuffers(1, &sphereSSBO);
+        glDeleteBuffers(1, &sphereColorSSBO);
+        glDeleteBuffers(1, &cylinderSSBO);
+        glDeleteBuffers(1, &cylinderAxisSSBO);
+        glDeleteBuffers(1, &cylinderColorSSBO);
+        glDeleteBuffers(1, &coneSSBO);
+        glDeleteBuffers(1, &coneAxisSSBO);
+        glDeleteBuffers(1, &coneColorSSBO);
     }
 };
 
