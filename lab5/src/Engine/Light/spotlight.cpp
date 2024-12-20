@@ -1,10 +1,11 @@
 #include "Engine/Light/spotlight.h"
 
 namespace Engine {
-    // cutoffAngle - внутренний угол конуса света (в градусах), определяет границу яркого света
-    // outerCutoffAngle - внешний угол конуса света (в градусах), определяет границу затухания света
+    
+    // Spotlight::Spotlight(GL::Program* program) : Light(program) {}
+    
     Spotlight::Spotlight(GL::Program* program, glm::vec3 position, glm::vec3 direction, float cutoffAngle, float outerCutoffAngle) :
-        mProgram(program), mPosition(position), mDirection(direction) {
+        Light(program), mPosition(position), mDirection(direction) {
             mCutoff = glm::cos(glm::radians(cutoffAngle));
             mOuterCutoff = glm::cos(glm::radians(outerCutoffAngle));
         }
@@ -18,10 +19,17 @@ namespace Engine {
     }
 
     void Spotlight::setUniforms(GL::Program* program) {
-        program->setUniform("spotlightPosition", mPosition);
-        program->setUniform("spotlightDirection", mDirection);
-        program->setUniform("spotlightCutoff", mCutoff);
-        program->setUniform("spotlightOuterCutoff", mOuterCutoff);
+        program->setUniform("fSpotlightPosition[0]", mPosition);
+        program->setUniform("fSpotlightDirection[0]", mDirection);
+        program->setUniform("fSpotlightCutoff[0]", mCutoff);
+        program->setUniform("fSpotlightOuterCutoff[0]", mOuterCutoff);
+    }
+
+    void Spotlight::setUniforms(GL::Program* program, int index) {
+        program->setUniform("fSpotlightPosition[" + std::to_string(index) + "]", mPosition);
+        program->setUniform("fSpotlightDirection[" + std::to_string(index) + "]", mDirection);
+        program->setUniform("fSpotlightCutoff[" + std::to_string(index) + "]", mCutoff);
+        program->setUniform("fSpotlightOuterCutoff[" + std::to_string(index) + "]", mOuterCutoff);
     }
 
     void Spotlight::changeAngle(float delta) {
