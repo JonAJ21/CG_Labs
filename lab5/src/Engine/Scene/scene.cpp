@@ -14,9 +14,9 @@ namespace Engine {
 
     Scene::Scene(int width, int height) : mWidth(width), mHeight(height) {
         glEnable(GL_DEPTH_TEST);
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-        
+        // glEnable(GL_CULL_FACE);
+        // glCullFace(GL_BACK);
+
         mCamera = new Camera(glm::vec3(0.0f, 0.0f, 2.0f));
         if (!mCamera) {
             throw std::runtime_error("Failed to create camera");

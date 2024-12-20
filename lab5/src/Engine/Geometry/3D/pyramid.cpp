@@ -6,63 +6,91 @@
 namespace Engine {
 
     Pyramid::Pyramid(std::vector<GL::Program*>& programs) : Object(programs) {
-        // Вершины пирамиды
+        // Вершины и нормали пирамиды
         mVertices = {
-            // Основание (квадрат)
-            glm::vec3(-0.5f, -0.5f, -0.5f),  // 0
-            glm::vec3(0.5f, -0.5f, -0.5f),   // 1
-            glm::vec3(0.5f, -0.5f, 0.5f),    // 2
-            glm::vec3(-0.5f, -0.5f, 0.5f),   // 3
-            // Вершина пирамиды
-            glm::vec3(0.0f, 0.5f, 0.0f)      // 4
+            // Основание
+            glm::vec3(-0.5f, 0.0f, -0.5f),
+            glm::vec3(0.5f, 0.0f, -0.5f),
+            
+            glm::vec3(0.5f, 0.0f, 0.5f),
+            glm::vec3(-0.5f, 0.0f, 0.5f),
+            
+            // Передняя грань
+            glm::vec3(-0.5f, 0.0f, 0.5f),
+            glm::vec3(0.5f, 0.0f, 0.5f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            
+            // Правая грань
+            glm::vec3(0.5f, 0.0f, 0.5f),
+            glm::vec3(0.5f, 0.0f, -0.5f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            
+            // Задняя грань
+            glm::vec3(0.5f, 0.0f, -0.5f),
+            glm::vec3(-0.5f, 0.0f, -0.5f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            
+            // Левая грань
+            glm::vec3(-0.5f, 0.0f, -0.5f),
+            glm::vec3(-0.5f, 0.0f, 0.5f),
+            glm::vec3(0.0f, 1.0f, 0.0f)
         };
 
-        // Цвета для вершин
-        mColors = {
-            glm::vec3(1.0f, 0.0f, 0.0f),  // Красный
-            glm::vec3(0.0f, 1.0f, 0.0f),  // Зеленый
-            glm::vec3(0.0f, 0.0f, 1.0f),  // Синий
-            glm::vec3(1.0f, 1.0f, 0.0f),  // Желтый
-            glm::vec3(1.0f, 0.0f, 1.0f)   // Пурпурный
+        mNormals = {
+            // Основание
+            glm::vec3(0.0f, -1.0f, 0.0f),
+            glm::vec3(0.0f, -1.0f, 0.0f),
+            
+            glm::vec3(0.0f, -1.0f, 0.0f),
+            glm::vec3(0.0f, -1.0f, 0.0f),
+            
+            // Передняя грань
+            glm::vec3(0.0f, 0.5f, 0.5f),
+            glm::vec3(0.0f, 0.5f, 0.5f),
+            glm::vec3(0.0f, 0.5f, 0.5f),
+            
+            // Правая грань
+            glm::vec3(0.5f, 0.5f, 0.0f),
+            glm::vec3(0.5f, 0.5f, 0.0f),
+            glm::vec3(0.5f, 0.5f, 0.0f),
+            
+            // Задняя грань
+            glm::vec3(0.0f, 0.5f, -0.5f),
+            glm::vec3(0.0f, 0.5f, -0.5f),
+            glm::vec3(0.0f, 0.5f, -0.5f),
+            
+            // Левая грань
+            glm::vec3(-0.5f, 0.5f, 0.0f),
+            glm::vec3(-0.5f, 0.5f, 0.0f),
+            glm::vec3(-0.5f, 0.5f, 0.0f)
         };
-
-        // Индексы для треугольников
+        
         mIndices = {
             // Основание
-            0, 1, 2,  // Первый треугольник основания
-            0, 2, 3,  // Второй треугольник основания
-            // Боковые грани
-            0, 4, 1,  // Передняя грань
-            1, 4, 2,  // Правая грань
-            2, 4, 3,  // Задняя грань
-            3, 4, 0   // Левая грань
-        };
-
-        // Вычисление нормалей для каждой грани
-        glm::vec3 normalBase = glm::vec3(0.0f, -1.0f, 0.0f);  // Нормаль основания
-        glm::vec3 normalFront = glm::normalize(glm::cross(mVertices[1] - mVertices[0], mVertices[4] - mVertices[0]));
-        glm::vec3 normalRight = glm::normalize(glm::cross(mVertices[2] - mVertices[1], mVertices[4] - mVertices[1]));
-        glm::vec3 normalBack = glm::normalize(glm::cross(mVertices[3] - mVertices[2], mVertices[4] - mVertices[2]));
-        glm::vec3 normalLeft = glm::normalize(glm::cross(mVertices[0] - mVertices[3], mVertices[4] - mVertices[3]));
-
-        // Нормали для каждой вершины
-        mNormals = {
-            normalBase,  // Вершина 0 (основание)
-            normalBase,  // Вершина 1 (основание) 
-            normalBase,  // Вершина 2 (основание)
-            normalBase,  // Вершина 3 (основание)
-            (normalFront + normalRight + normalBack + normalLeft) / 4.0f  // Вершина 4 (вершина пирамиды)
-        };
-
-
-        mIndices = {
             0, 1, 2,
             0, 2, 3,
-            0, 4, 1,
-            1, 4, 2,
-            2, 4, 3,
-            3, 4, 0
+            
+            // Передняя грань
+            4, 5, 6,
+            
+            // Правая грань 
+            7, 8, 9,
+            
+            // Задняя грань
+            10, 11, 12,
+            
+            // Левая грань
+            13, 14, 15
         };
+
+        // mIndices = {
+        //     0, 1, 2,
+        //     0, 2, 3,
+        //     0, 4, 1,
+        //     1, 4, 2,
+        //     2, 4, 3,
+        //     3, 4, 0
+        // };
  
         mVAO.addVertexBufferObject(mVertices);
         mVAO.addVertexBufferObject(mColors);
