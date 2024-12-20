@@ -24,7 +24,7 @@
 #include <memory>
 #include <vector>
 
-// Шейдерные исходники
+
 const char* vertexShaderSource = R"(
 #version 450
 layout (location = 0) in vec3 aPos;
@@ -60,7 +60,218 @@ void main() {
 }
 )";
 
-const char* fragmentShaderSource = R"(
+const char* simpleFragmentShaderSource = R"(
+#version 450
+out vec4 color;
+in vec3 worldPosition;
+in vec3 screenPosition;
+in vec2 texCoord;
+
+uniform vec3 cameraPos;
+uniform vec3 cameraFront;
+uniform float refractionIndex;
+uniform int numSpheres;
+uniform int numCylinders;
+uniform int numCones;
+
+// Буферы объектов с фиксированным размером
+layout(std430, binding = 0) buffer SphereBuffer {
+    vec4 spheres[10];  // xyz - позиция, w - радиус
+};
+layout(std430, binding = 1) buffer SphereColorBuffer {
+    vec4 sphereColors[10];
+};
+layout(std430, binding = 2) buffer CylinderBuffer {
+    vec4 cylinders[10];
+};
+layout(std430, binding = 3) buffer CylinderAxisBuffer {
+    vec4 cylinderAxes[10];
+};
+layout(std430, binding = 4) buffer CylinderColorBuffer {
+    vec4 cylinderColors[10];
+};
+layout(std430, binding = 5) buffer ConeBuffer {
+    vec4 cones[10];
+};
+layout(std430, binding = 6) buffer ConeAxisBuffer {
+    vec4 coneAxes[10];
+};
+layout(std430, binding = 7) buffer ConeColorBuffer {
+    vec4 coneColors[10];
+};
+
+vec3 lightPos = vec3(2.0, 2.0, 2.0);
+float ambient = 0.1;
+
+// Функция для определения пересечения с сферой
+bool intersectSphere(vec3 rayOrigin, vec3 rayDir, vec3 sphereCenter, float radius, out float t, out vec3 normal) {
+    vec3 oc = rayOrigin - sphereCenter;
+    float a = dot(rayDir, rayDir);
+    float b = 2.0 * dot(oc, rayDir);
+    float c = dot(oc, oc) - radius * radius;
+    float discriminant = b * b - 4.0 * a * c;
+    
+    if (discriminant < 0.0) return false;
+    
+    t = (-b - sqrt(discriminant)) / (2.0 * a);
+    if (t < 0.0) return false;
+    
+    vec3 hitPoint = rayOrigin + t * rayDir;
+    normal = normalize(hitPoint - sphereCenter);
+    return true;
+}
+
+// Функция для определения пересечения с цилиндром
+bool intersectCylinder(vec3 rayOrigin, vec3 rayDir, vec3 base, vec3 axis, float radius, float height, 
+                      out float t, out vec3 normal) {
+    vec3 rc = rayOrigin - base;
+    vec3 n = normalize(axis);
+    vec3 D = rayDir - dot(rayDir, n) * n;
+    vec3 O = rc - dot(rc, n) * n;
+    
+    float a = dot(D, D);
+    float b = 2.0 * dot(O, D);
+    float c = dot(O, O) - radius * radius;
+    float discriminant = b * b - 4.0 * a * c;
+    
+    if (discriminant < 0.0) return false;
+    
+    t = (-b - sqrt(discriminant)) / (2.0 * a);
+    if (t < 0.0) return false;
+    
+    vec3 hitPoint = rayOrigin + t * rayDir;
+    float h = dot(hitPoint - base, n);
+    if (h < 0.0 || h > height) return false;
+    
+    normal = normalize(hitPoint - (base + h * n));
+    return true;
+}
+
+// Функция для определения пересечения с конусом
+bool intersectCone(vec3 rayOrigin, vec3 rayDir, vec3 apex, vec3 axis, float angle, float height,
+                  out float t, out vec3 normal) {
+    vec3 co = rayOrigin - apex;
+    vec3 n = normalize(axis);
+    float cosa = cos(angle);
+    float cosa2 = cosa * cosa;
+    
+    float dv = dot(rayDir, n);
+    float cv = dot(co, n);
+    
+    float a = dv * dv - cosa2;
+    float b = 2.0 * (dv * cv - dot(rayDir, co) * cosa2);
+    float c = cv * cv - dot(co, co) * cosa2;
+    
+    float discriminant = b * b - 4.0 * a * c;
+    if (discriminant < 0.0) return false;
+    
+    t = (-b - sqrt(discriminant)) / (2.0 * a);
+    if (t < 0.0) return false;
+    
+    vec3 hitPoint = rayOrigin + t * rayDir;
+    float h = dot(hitPoint - apex, n);
+    if (h < 0.0 || h > height) return false;
+    
+    normal = normalize(hitPoint - apex);
+    return true;
+}
+
+void main() {
+    vec3 rayOrigin = cameraPos;
+    vec3 rayDir = normalize(screenPosition);
+    
+    float minT = 1000000.0;
+    vec3 finalColor = vec3(0.1); // Фоновый цвет
+    vec3 finalNormal = vec3(0.0, 1.0, 0.0);
+    bool hit = false;
+    bool isTransparent = false;
+    
+    // Проверяем пересечения со сферами
+    for(int i = 0; i < numSpheres; i++) {
+        float t;
+        vec3 normal;
+        if(intersectSphere(rayOrigin, rayDir, spheres[i].xyz, spheres[i].w, t, normal)) {
+            if(t < minT) {
+                minT = t;
+                finalColor = sphereColors[i].rgb;
+                finalNormal = normal;
+                isTransparent = sphereColors[i].a > 0.5;
+                hit = true;
+            }
+        }
+    }
+    
+    // Проверяем пересечения с цилиндрами
+    for(int i = 0; i < numCylinders; i++) {
+        float t;
+        vec3 normal;
+        if(intersectCylinder(rayOrigin, rayDir, cylinders[i].xyz, cylinderAxes[i].xyz,
+                           cylinders[i].w, cylinderAxes[i].w, t, normal)) {
+            if(t < minT) {
+                minT = t;
+                finalColor = cylinderColors[i].rgb;
+                finalNormal = normal;
+                isTransparent = cylinderColors[i].a > 0.5;
+                hit = true;
+            }
+        }
+    }
+    
+    // Проверяем пересечения с конусами
+    for(int i = 0; i < numCones; i++) {
+        float t;
+        vec3 normal;
+        if(intersectCone(rayOrigin, rayDir, cones[i].xyz, coneAxes[i].xyz,
+                        cones[i].w, coneAxes[i].w, t, normal)) {
+            if(t < minT) {
+                minT = t;
+                finalColor = coneColors[i].rgb;
+                finalNormal = normal;
+                isTransparent = coneColors[i].a > 0.5;
+                hit = true;
+            }
+        }
+    }
+
+    // Проверяем пересечение с полом
+    vec3 planeNormal = vec3(0.0, 1.0, 0.0);
+    float planeHeight = 1.0;
+    float denom = dot(planeNormal, rayDir);
+    if (abs(denom) > 0.0001) {
+        vec3 p0 = vec3(0.0, -planeHeight, 0.0);
+        float t = dot(p0 - rayOrigin, planeNormal) / denom;
+        if (t > 0.0001 && t < minT) {
+            minT = t;
+            finalColor = vec3(0.2, 0.3, 0.4); // Новый цвет пола - серо-синий
+            finalNormal = planeNormal;
+            isTransparent = false;
+            hit = true;
+        }
+    }
+    
+    if(hit) {
+        // Простое освещение
+        vec3 hitPoint = rayOrigin + minT * rayDir;
+        vec3 lightDir = normalize(lightPos - hitPoint);
+        float diff = max(dot(finalNormal, lightDir), 0.0);
+        vec3 litColor = finalColor * (ambient + diff);
+        
+        // Простая прозрачность
+        if(isTransparent) {
+            litColor = mix(litColor, vec3(0.5, 0.5, 1.0), 0.5);
+        }
+        
+        color = vec4(litColor, 1.0);
+    } else {
+        color = vec4(finalColor, 1.0);
+    }
+}
+)";
+
+//=============================================================
+
+
+const char* raytracingFragmentShaderSource = R"(
 #version 450
 out vec4 color;
 in vec3 worldPosition;
@@ -635,12 +846,6 @@ private:
             glm::vec4(1.0f, 0.2f, 0.2f, 0.0f)
         });
 
-        spheres.push_back({
-            glm::vec4(2.0f, 2.0f, -2.5f, 0.5f),
-            glm::vec4(0.0f),
-            glm::vec4(1.0f, 0.2f, 0.2f, 0.0f)
-        });
-
         // Цилиндры
         cylinders.push_back({
             glm::vec4(-1.5f, -1.0f, -2.5f, 0.3f),
@@ -650,9 +855,9 @@ private:
 
         // Конусы
         cones.push_back({
-            glm::vec4(1.5f, -1.0f, -2.5f, 0.5f),
+            glm::vec4(2.0f, -1.0f, -2.5f, 0.5f),
             glm::vec4(0.0f, 1.0f, 0.0f, 1.0f),
-            glm::vec4(0.8f, 0.4f, 0.0f, 0.0f)
+            glm::vec4(0.8f, 0.4f, 0.5f, 0.0f)
         });
     }
 
@@ -773,25 +978,29 @@ class Application {
 private:
     std::unique_ptr<sf::Window> window;
     std::unique_ptr<Camera> camera;
-    std::unique_ptr<Shader> shader;
+    std::unique_ptr<Shader> simpleShader;
+    std::unique_ptr<Shader> complexShader;
     std::unique_ptr<Renderer> renderer;
     float refractionIndex;
     bool cursorGrabbed;
+    bool useComplexShader;
     sf::Clock clock;
 
 public:
     Application() : 
         refractionIndex(1.5f),
-        cursorGrabbed(true) {
+        cursorGrabbed(true),
+        useComplexShader(true) {
         initWindow();
         initGL();
         
         camera = std::make_unique<Camera>();
-        shader = std::make_unique<Shader>(vertexShaderSource, fragmentShaderSource);
+        simpleShader = std::make_unique<Shader>(vertexShaderSource, simpleFragmentShaderSource);
+        complexShader = std::make_unique<Shader>(vertexShaderSource, raytracingFragmentShaderSource);
         renderer = std::make_unique<Renderer>();
         
-        shader->use();
-        shader->setFloat("refractionIndex", refractionIndex);
+        getCurrentShader()->use();
+        getCurrentShader()->setFloat("refractionIndex", refractionIndex);
     }
 
     void run() {
@@ -804,6 +1013,10 @@ public:
     }
 
 private:
+    Shader* getCurrentShader() {
+        return useComplexShader ? complexShader.get() : simpleShader.get();
+    }
+
     void initWindow() {
         sf::ContextSettings settings;
         settings.depthBits = 24;
@@ -869,7 +1082,7 @@ private:
     }
 
     void handleKeyPress(const sf::Event::KeyEvent& key) {
-        if (!shader) return;
+        if (!getCurrentShader()) return;
 
         if (key.code == sf::Keyboard::Tab) {
             toggleCursor();
@@ -889,6 +1102,16 @@ private:
         else if (key.code == sf::Keyboard::D && key.control) {
             setRefractionIndex(2.42f, "Diamond");
         }
+        else if (key.code == sf::Keyboard::M) {
+            toggleShader();
+        }
+    }
+
+    void toggleShader() {
+        useComplexShader = !useComplexShader;
+        getCurrentShader()->use();
+        getCurrentShader()->setFloat("refractionIndex", refractionIndex);
+        std::cout << "Using " << (useComplexShader ? "complex" : "simple") << " shader" << std::endl;
     }
 
     void handleInput() {
@@ -903,10 +1126,10 @@ private:
     }
 
     void updateCamera() {
-        if (!shader || !camera) return;
+        if (!getCurrentShader() || !camera) return;
 
-        shader->setVec3("cameraPos", camera->getPosition());
-        shader->setVec3("cameraFront", camera->getFront());
+        getCurrentShader()->setVec3("cameraPos", camera->getPosition());
+        getCurrentShader()->setVec3("cameraFront", camera->getFront());
     }
 
     void render() {
@@ -928,18 +1151,18 @@ private:
     }
 
     void adjustRefractionIndex(float delta) {
-        if (!shader) return;
+        if (!getCurrentShader()) return;
 
         refractionIndex = std::max(1.0f, refractionIndex + delta);
-        shader->setFloat("refractionIndex", refractionIndex);
+        getCurrentShader()->setFloat("refractionIndex", refractionIndex);
         std::cout << "Refraction index: " << refractionIndex << std::endl;
     }
 
     void setRefractionIndex(float value, const std::string& material) {
-        if (!shader) return;
+        if (!getCurrentShader()) return;
 
         refractionIndex = value;
-        shader->setFloat("refractionIndex", refractionIndex);
+        getCurrentShader()->setFloat("refractionIndex", refractionIndex);
         std::cout << material << ": " << refractionIndex << std::endl;
     }
 
