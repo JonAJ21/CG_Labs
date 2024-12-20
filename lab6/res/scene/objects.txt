@@ -1,0 +1,12 @@
+# Файл с описанием объектов сцены
+# Формат: тип x y z параметры...
+
+# Формат для сферы: sphere posX posY posZ radius colorR colorG colorB transparency
+# Формат для цилиндра: cylinder posX posY posZ radius axisX axisY axisZ colorR colorG colorB transparency
+# Формат для конуса: cone posX posY posZ radius axisX axisY axisZ colorR colorG colorB transparency
+
+sphere 0 0 0.399998 0.5 0.8 0.8 1 1
+sphere 1 0 -2.5 0.5 1 0.2 0.2 0
+cylinder -1.5 -0.159006 -2.5 0.3 0 1 0 1 0.2 0.8 0.2 1
+cylinder -3 -1 -2.5 0.3 0 1 0 1 0.2 0.8 0.2 0
+cone 2 -1 -2.5 0.5 0 1 0 1 0.8 0.4 0.5 0

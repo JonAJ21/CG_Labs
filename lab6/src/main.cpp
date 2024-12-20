@@ -1,18 +1,3 @@
-// #include <iostream>
-
-// #include "SFML/window.h"
-
-// int main() {
-//     try {
-//         Window window("Lab6", 500, 500, 60);
-//     } catch (const std::runtime_error& e) {
-//         std::cerr << "Error: " << e.what() << std::endl;
-//         return -1;
-//     }
-//     return 0;
-// }
-
-
 #include <GL/glew.h>
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
@@ -23,7 +8,9 @@
 #include <string>
 #include <memory>
 #include <vector>
-
+#include <fstream>      // для std::ifstream
+#include <sstream>      // для std::istringstream
+#include <stdexcept>    // для std::runtime_error
 
 const char* vertexShaderSource = R"(
 #version 450
@@ -793,6 +780,9 @@ private:
     std::vector<Object> spheres;
     std::vector<Object> cylinders;
     std::vector<Object> cones;
+
+    int direction1 = 1;
+    int direction2 = 1;
     
     float vertices[20] = {
         -1.0f,  1.0f, 0.0f,  0.0f, 1.0f,
@@ -815,6 +805,12 @@ public:
 
     void draw() {
         glBindVertexArray(VAO);
+        
+        moveObjects();
+        setupBuffers();
+        // setupObjects();
+        setupSSBOs();
+
         updateUniformCounts();
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
@@ -832,33 +828,216 @@ private:
         glUniform1i(glGetUniformLocation(currentProgram, "numCones"), cones.size());
     }
 
+    void saveObjectsToFile(const std::string& filename) {
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+            throw std::runtime_error("Не удалось открыть файл для записи: " + filename);
+        }
+
+        file << "# Файл с описанием объектов сцены\n";
+        file << "# Формат: тип x y z параметры...\n\n";
+        file << "# Формат для сферы: sphere posX posY posZ radius colorR colorG colorB transparency\n";
+        file << "# Формат для цилиндра: cylinder posX posY posZ radius axisX axisY axisZ colorR colorG colorB transparency\n";
+        file << "# Формат для конуса: cone posX posY posZ radius axisX axisY axisZ colorR colorG colorB transparency\n\n";
+
+        // Сохраняем сферы
+        for (const auto& sphere : spheres) {
+            file << "sphere "
+                << sphere.position.x << " " 
+                << sphere.position.y << " " 
+                << sphere.position.z << " "
+                << sphere.position.w << " "  // radius
+                << sphere.color.r << " " 
+                << sphere.color.g << " " 
+                << sphere.color.b << " "
+                << sphere.color.a << "\n";  // transparency
+        }
+
+        // Сохраняем цилиндры
+        for (const auto& cylinder : cylinders) {
+            file << "cylinder "
+                << cylinder.position.x << " " 
+                << cylinder.position.y << " " 
+                << cylinder.position.z << " "
+                << cylinder.position.w << " "  // radius
+                << cylinder.axis.x << " " 
+                << cylinder.axis.y << " " 
+                << cylinder.axis.z << " "
+                << cylinder.axis.w << " "  // height
+                << cylinder.color.r << " " 
+                << cylinder.color.g << " " 
+                << cylinder.color.b << " "
+                << cylinder.color.a << "\n";
+        }
+
+        // Сохраняем конусы
+        for (const auto& cone : cones) {
+            file << "cone "
+                << cone.position.x << " " 
+                << cone.position.y << " " 
+                << cone.position.z << " "
+                << cone.position.w << " "  // angle
+                << cone.axis.x << " " 
+                << cone.axis.y << " " 
+                << cone.axis.z << " "
+                << cone.axis.w << " "  // height
+                << cone.color.r << " " 
+                << cone.color.g << " " 
+                << cone.color.b << " "
+                << cone.color.a << "\n";
+        }
+
+        file.close();
+    }
+
+    void loadObjectsFromFile(const std::string& filename) {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            throw std::runtime_error("Не удалось открыть файл: " + filename);
+        }
+
+        // Очищаем существующие объекты
+        spheres.clear();
+        cylinders.clear();
+        cones.clear();
+
+        std::string line;
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            std::string type;
+            iss >> type;
+
+            if (type == "sphere") {
+                glm::vec3 position;
+                float radius;
+                glm::vec3 color;
+                float transparency;
+
+                iss >> position.x >> position.y >> position.z 
+                    >> radius 
+                    >> color.r >> color.g >> color.b 
+                    >> transparency;
+
+                spheres.push_back({
+                    glm::vec4(position, radius),
+                    glm::vec4(0.0f), // unused
+                    glm::vec4(color, transparency)
+                });
+            }
+            else if (type == "cylinder") {
+                glm::vec3 base;
+                float radius;
+                glm::vec3 axis;
+                float height;
+                glm::vec3 color;
+                float transparency;
+
+                iss >> base.x >> base.y >> base.z 
+                    >> radius 
+                    >> axis.x >> axis.y >> axis.z 
+                    >> height 
+                    >> color.r >> color.g >> color.b 
+                    >> transparency;
+
+                cylinders.push_back({
+                    glm::vec4(base, radius),
+                    glm::vec4(axis, height),
+                    glm::vec4(color, transparency)
+                });
+            }
+            else if (type == "cone") {
+                glm::vec3 apex;
+                float angle;
+                glm::vec3 axis;
+                float height;
+                glm::vec3 color;
+                float transparency;
+
+                iss >> apex.x >> apex.y >> apex.z 
+                    >> angle 
+                    >> axis.x >> axis.y >> axis.z 
+                    >> height 
+                    >> color.r >> color.g >> color.b 
+                    >> transparency;
+
+                cones.push_back({
+                    glm::vec4(apex, angle),
+                    glm::vec4(axis, height),
+                    glm::vec4(color, transparency)
+                });
+            }
+        }
+
+        file.close();
+        setupSSBOs(); // Обновляем буферы после загрузки новых объектов
+    }
+
+    void moveObjects() {
+        if (cylinders.size() > 0) {
+            // if (cylinders[0].position.y  0.0f) {
+            //     cylinders[0].position.y += 0.01f;
+            // }
+            // if (cylinders[0].position.y < 1.0f) {
+            //     cylinders[0].position.y -= 0.01f;
+            // }
+            // int direction = 1;
+            if (cylinders[0].position.y >= 1.0f) {
+                direction1 = -1;
+            }
+
+            if (cylinders[0].position.y <= -1.0f) {
+                direction1 = 1;
+            }
+
+            cylinders[0].position.y += 0.005f * direction1;
+        }
+
+        if (spheres.size() > 0) {
+            if (spheres[0].position.z >= 1.0f) {
+                direction2 = -1;
+            }
+
+            if (spheres[0].position.z <= -1.0f) {
+                direction2 = 1;
+            }
+
+            spheres[0].position.z += 0.005f * direction2;
+        }
+
+        saveObjectsToFile("../res/scene/objects.txt");
+    }
+
     void setupObjects() {
-        // Сферы
-        spheres.push_back({
-            glm::vec4(0.0f, 0.0f, -2.0f, 0.5f),  // position and radius
-            glm::vec4(0.0f),                      // unused for spheres
-            glm::vec4(0.8f, 0.8f, 1.0f, 1.0f)    // color and transparency
-        });
+        loadObjectsFromFile("../res/scene/objects.txt");
         
-        spheres.push_back({
-            glm::vec4(1.0f, 0.0f, -2.5f, 0.5f),
-            glm::vec4(0.0f),
-            glm::vec4(1.0f, 0.2f, 0.2f, 0.0f)
-        });
+        // // Сферы
+        // spheres.push_back({
+        //     glm::vec4(0.0f, 0.0f, -2.0f, 0.5f),  // position and radius
+        //     glm::vec4(0.0f),                      // unused for spheres
+        //     glm::vec4(0.8f, 0.8f, 1.0f, 1.0f)    // color and transparency
+        // });
+        
+        // spheres.push_back({
+        //     glm::vec4(1.0f, 0.0f, -2.5f, 0.5f),
+        //     glm::vec4(0.0f),
+        //     glm::vec4(1.0f, 0.2f, 0.2f, 0.0f)
+        // });
 
         // Цилиндры
-        cylinders.push_back({
-            glm::vec4(-1.5f, -1.0f, -2.5f, 0.3f),
-            glm::vec4(0.0f, 1.0f, 0.0f, 1.0f),
-            glm::vec4(0.2f, 0.8f, 0.2f, 0.0f)
-        });
+        // cylinders.push_back({
+        //     glm::vec4(-1.5f, -1.0f, -2.5f, 0.3f),
+        //     glm::vec4(0.0f, 1.0f, 0.0f, 1.0f),
+        //     glm::vec4(0.2f, 0.8f, 0.2f, 0.0f)
+        // });
 
-        // Конусы
-        cones.push_back({
-            glm::vec4(2.0f, -1.0f, -2.5f, 0.5f),
-            glm::vec4(0.0f, 1.0f, 0.0f, 1.0f),
-            glm::vec4(0.8f, 0.4f, 0.5f, 0.0f)
-        });
+        // saveObjectsToFile("../res/scene/objects.txt");
+
+        // // Конусы
+        // cones.push_back({
+        //     glm::vec4(2.0f, -1.0f, -2.5f, 0.5f),
+        //     glm::vec4(0.0f, 1.0f, 0.0f, 1.0f),
+        //     glm::vec4(0.8f, 0.4f, 0.5f, 0.0f)
+        // });
     }
 
     void setupBuffers() {
@@ -1134,6 +1313,10 @@ private:
 
     void render() {
         if (!window || !renderer) return;
+
+
+
+
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
