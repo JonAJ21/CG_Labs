@@ -156,6 +156,76 @@ Hit intersectPlane(Ray ray, vec3 normal, float height, vec3 color) {
     return hit;
 }
 
+Hit intersectCylinder(Ray ray, vec3 base, vec3 axis, float radius, float height, vec3 color, bool isTransparent) {
+    Hit hit;
+    hit.happened = false;
+    
+    vec3 rc = ray.origin - base;
+    vec3 n = normalize(axis);
+    vec3 d = ray.direction;
+    
+    float a = dot(d, d) - pow(dot(d, n), 2);
+    float b = 2.0 * (dot(rc, d) - dot(d, n) * dot(rc, n));
+    float c = dot(rc, rc) - pow(dot(rc, n), 2) - radius * radius;
+    
+    float discriminant = b * b - 4.0 * a * c;
+    
+    if (discriminant > 0.0) {
+        float t = (-b - sqrt(discriminant)) / (2.0 * a);
+        if (t > 0.001) {
+            vec3 p = ray.origin + t * ray.direction - base;
+            float h = dot(p, n);
+            
+            if (h >= 0.0 && h <= height) {
+                hit.happened = true;
+                hit.t = t;
+                hit.point = ray.origin + t * ray.direction;
+                hit.normal = normalize(hit.point - (base + h * n));
+                hit.color = color;
+                hit.isTransparent = isTransparent;
+            }
+        }
+    }
+    
+    return hit;
+}
+
+Hit intersectCone(Ray ray, vec3 apex, vec3 axis, float angle, float height, vec3 color, bool isTransparent) {
+    Hit hit;
+    hit.happened = false;
+    
+    vec3 co = ray.origin - apex;
+    vec3 n = normalize(axis);
+    float cosTheta = cos(angle);
+    float sinTheta2 = sin(angle) * sin(angle);
+    
+    float a = dot(ray.direction, n) * dot(ray.direction, n) - cosTheta * cosTheta;
+    float b = 2.0 * (dot(ray.direction, n) * dot(co, n) - dot(ray.direction, co) * cosTheta * cosTheta);
+    float c = dot(co, n) * dot(co, n) - dot(co, co) * cosTheta * cosTheta;
+    
+    float discriminant = b * b - 4.0 * a * c;
+    
+    if (discriminant > 0.0) {
+        float t = (-b - sqrt(discriminant)) / (2.0 * a);
+        if (t > 0.001) {
+            vec3 p = ray.origin + t * ray.direction - apex;
+            float h = dot(p, n);
+            
+            if (h >= 0.0 && h <= height) {
+                hit.happened = true;
+                hit.t = t;
+                hit.point = ray.origin + t * ray.direction;
+                vec3 ph = apex + h * n;
+                hit.normal = normalize(hit.point - ph);
+                hit.color = color;
+                hit.isTransparent = isTransparent;
+            }
+        }
+    }
+    
+    return hit;
+}
+
 Hit intersectScene(Ray ray) {
     Hit hit;
     hit.happened = false;
@@ -168,6 +238,14 @@ Hit intersectScene(Ray ray) {
     // Непрозрачная сфера
     Hit sphere2 = intersectSphere(ray, vec3(1.0, 0.0, -2.5), 0.5, vec3(1.0, 0.2, 0.2), false);
     if (sphere2.happened && sphere2.t < hit.t) hit = sphere2;
+    
+    // // Цилиндр
+    // Hit cylinder = intersectCylinder(ray, vec3(-1.5, -1.0, -2.5), vec3(0.0, 1.0, 0.0), 0.3, 1.0, vec3(0.2, 0.8, 0.2), true);
+    // if (cylinder.happened && cylinder.t < hit.t) hit = cylinder;
+    
+    // // Конус
+    // Hit cone = intersectCone(ray, vec3(1.5, -1.0, -2.5), vec3(0.0, 1.0, 0.0), 0.5, 1.0, vec3(0.8, 0.4, 0.0), false);
+    // if (cone.happened && cone.t < hit.t) hit = cone;
     
     // Пол
     Hit plane = intersectPlane(ray, vec3(0.0, 1.0, 0.0), 1.0, vec3(0.5));
